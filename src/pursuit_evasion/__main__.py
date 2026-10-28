@@ -44,17 +44,27 @@ def main():
     a = p.parse_args()
     if a.command == "solve":
         from .dp.grid import GridSpec
+        from .dp.options import validate_options
 
-        if a.backend == "native":
-            from .dp.native import solve as run
-        elif a.backend == "jax":
-            from .dp.jax_backend import solve as run
-        else:
-            from .dp.optimized import solve as run
+        destination = Path(a.output).resolve()
+        if (destination / "meta.json").exists() or (
+            destination.exists() and any(destination.iterdir())
+        ):
+            raise FileExistsError(f"Preserve existing run directory: {destination}")
+        config = GameConfig.load(a.config)
+        grid = GridSpec(a.positions, a.headings, a.extent)
+        validate_options(a.horizon, a.output_dt, a.order, a.cfl, a.threads)
+        destination.mkdir(parents=True, exist_ok=True)
         try:
+            if a.backend == "native":
+                from .dp.native import solve as run
+            elif a.backend == "jax":
+                from .dp.jax_backend import solve as run
+            else:
+                from .dp.optimized import solve as run
             result = run(
-                GameConfig.load(a.config),
-                GridSpec(a.positions, a.headings, a.extent),
+                config,
+                grid,
                 a.output,
                 horizon=a.horizon,
                 output_dt=a.output_dt,
@@ -66,7 +76,7 @@ def main():
         except FileExistsError:
             raise  # Never alter a completed run that the user tried to overwrite.
         except Exception as exc:
-            path = Path(a.output) / "meta.json"
+            path = destination / "meta.json"
             metadata = (
                 json.loads(path.read_text())
                 if path.exists()

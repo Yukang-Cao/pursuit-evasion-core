@@ -13,10 +13,20 @@ class GridSpec:
     extent: float = 3.5
 
     def __post_init__(self):
-        if self.positions < 5 or self.headings < 4 or self.extent <= 0:
-            raise ValueError(
-                "Need at least five position samples and four periodic headings."
+        counts = (self.positions, self.headings)
+        if (
+            any(
+                not isinstance(n, (int, np.integer)) or isinstance(n, bool)
+                for n in counts
             )
+            or self.positions < 5
+            or self.headings < 4
+        ):
+            raise ValueError(
+                "Grid counts must be integers with at least five position samples and four periodic headings."
+            )
+        if not np.isfinite(self.extent) or self.extent <= 0:
+            raise ValueError("Grid extent must be finite and positive.")
 
     @property
     def shape(self):
@@ -74,8 +84,8 @@ def target_and_avoid(grid: GridSpec, config: GameConfig, dtype=np.float32):
 
 
 def output_times(horizon, output_dt):
-    if horizon <= 0 or output_dt <= 0:
-        raise ValueError("Horizon and output spacing must be positive.")
+    if not np.isfinite([horizon, output_dt]).all() or horizon <= 0 or output_dt <= 0:
+        raise ValueError("Horizon and output spacing must be finite and positive.")
     times = np.minimum(
         np.arange(int(np.ceil(horizon / output_dt)) + 1) * output_dt, horizon
     )

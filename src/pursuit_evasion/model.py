@@ -19,8 +19,12 @@ class Vehicle:
     max_turn_rate: float
 
     def __post_init__(self):
-        if self.speed <= 0 or self.max_turn_rate <= 0:
-            raise ValueError("Fixed speed and turn bound must both be positive.")
+        if (
+            not np.isfinite([self.speed, self.max_turn_rate]).all()
+            or self.speed <= 0
+            or self.max_turn_rate <= 0
+        ):
+            raise ValueError("Fixed speed and turn bound must be finite and positive.")
 
     @property
     def minimum_turn_radius(self) -> float:
@@ -39,9 +43,10 @@ class GameConfig:
     point_vehicles: bool = True
 
     def __post_init__(self):
-        if min(self.arena_half_width, self.capture_radius, self.control_dt) <= 0:
+        scalars = [self.arena_half_width, self.capture_radius, self.control_dt]
+        if not np.isfinite(scalars).all() or min(scalars) <= 0:
             raise ValueError(
-                "Map size, capture radius and command interval must be positive."
+                "Map size, capture radius and command interval must be finite and positive."
             )
         if self.boundary_rule != "first_fault_loses" or not self.point_vehicles:
             raise ValueError(

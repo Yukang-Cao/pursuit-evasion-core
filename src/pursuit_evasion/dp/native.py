@@ -9,6 +9,7 @@ import time
 
 from .grid import GridSpec, output_times
 from ..model import GameConfig
+from .options import validate_options
 
 
 def solve(
@@ -23,6 +24,7 @@ def solve(
     threads=8,
     history=True,
 ):
+    validate_options(horizon, output_dt, order, cfl, threads)
     output = Path(output).resolve()
     if (output / "meta.json").exists():
         raise FileExistsError(f"Preserve completed solve: {output}")

@@ -85,6 +85,8 @@ def advance(
     dt = config.control_dt if duration is None else float(duration)
     if dt < 0 or not np.isfinite(dt):
         raise ValueError("Duration must be finite and nonnegative.")
+    if not np.isfinite(p_turn) or not np.isfinite(e_turn):
+        raise ValueError("Turn commands must be finite.")
     if (
         abs(p_turn) > config.pursuer.max_turn_rate + 1e-12
         or abs(e_turn) > config.evader.max_turn_rate + 1e-12
@@ -133,10 +135,22 @@ def predict_pairs(state, p_turns, e_turns, config: GameConfig, duration=None):
     crossings use vector bisection, avoiding a Python root search per pair.
     """
     dt = config.control_dt if duration is None else float(duration)
+    s = np.asarray(state, dtype=float)
+    if s.shape != (6,) or not np.isfinite(s).all():
+        raise ValueError("Expected a finite six-dimensional joint state.")
+    if not np.isfinite(dt) or dt < 0:
+        raise ValueError("Duration must be finite and nonnegative.")
     p_turns = np.asarray(p_turns, dtype=float)
     e_turns = np.asarray(e_turns, dtype=float)
     if p_turns.ndim != 1 or e_turns.ndim != 1:
         raise ValueError("Command catalogues must be vectors.")
+    if (
+        not p_turns.size
+        or not e_turns.size
+        or not np.isfinite(p_turns).all()
+        or not np.isfinite(e_turns).all()
+    ):
+        raise ValueError("Command catalogues must be nonempty and finite.")
     if (
         np.max(abs(p_turns)) > config.pursuer.max_turn_rate + 1e-12
         or np.max(abs(e_turns)) > config.evader.max_turn_rate + 1e-12

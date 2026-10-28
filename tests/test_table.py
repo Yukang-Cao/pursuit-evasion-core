@@ -53,6 +53,8 @@ def test_terminal_events_override_numerical_interpolation(table):
     assert table.value([0, 0, 0, 0.1, 0, 0]) == 0
     assert table.value([0, 0, 0, 3.0, 1.0, 0]) == 0  # E fault, not capture
     assert np.isnan(table.value([3.0, 0, 0, 3.0, 0, 0]))  # P fault has priority
+    assert np.isnan(table.value([0, 0, np.nan, 0.1, 0, 0]))
+    assert np.isnan(table.value([0, 0, 0, np.inf, 0, 0]))
 
 
 def test_batch_shape_is_preserved(table):

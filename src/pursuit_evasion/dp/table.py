@@ -118,5 +118,6 @@ class LocalTable:
         capture = np.linalg.norm(s[:, :2] - s[:, 3:5], axis=1) <= c.capture_radius
         e_fault = np.max(abs(s[:, 3:5]), axis=1) >= c.arena_half_width
         result = np.where(valid & p_valid, result, np.nan)
-        result = np.where(p_valid & (capture | e_fault), 0.0, result)
+        finite_state = np.isfinite(s).all(axis=1)
+        result = np.where(finite_state & p_valid & (capture | e_fault), 0.0, result)
         return result.reshape(shape)

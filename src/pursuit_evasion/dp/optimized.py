@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+from .options import validate_options
 
 
 def solve(
@@ -18,6 +19,7 @@ def solve(
     threads=8,
     history=True,
 ):
+    validate_options(horizon, output_dt, order, cfl, threads)
     if abs(cfl - 0.8) > 1e-12:
         raise ValueError("The unmodified OptimizedDP graph uses CFL 0.8.")
     python = os.environ.get("PE_ODP_PYTHON")
