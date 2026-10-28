@@ -1,0 +1,10 @@
+---
+description: Shared scientific and software contracts for the pursuit-evasion core
+alwaysApply: true
+---
+
+Follow the repository-wide `AGENTS.md`, then `docs/model.md` for the physical game
+and `docs/architecture.md` for code responsibilities. Keep all generated research
+artifacts out of this repository's tracked files. Preserve declared state order,
+units, event precedence and numerical-domain behavior across implementations.
+
