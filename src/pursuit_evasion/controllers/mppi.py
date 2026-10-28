@@ -9,6 +9,7 @@ import time
 import numpy as np
 
 from ..model import GameConfig, vehicle_step
+from ..geometry import turning_circle_clearances
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class MPPISettings:
     terminal_distance_weight: float = 5.0
     control_weight: float = 0.03
     safety_margin: float = 0.02
+    terminal_safe_circle: bool = True
 
 
 class MPPITracker:
@@ -37,6 +39,7 @@ class MPPITracker:
     def reset(self):
         self.rng = np.random.default_rng(self.seed)
         self.nominal = np.zeros(self.steps)
+        self.terminal_command = 0.0
         self.last = {}
 
     def _rollout(self, pose, commands, target):
@@ -72,13 +75,22 @@ class MPPITracker:
         costs += s.terminal_distance_weight * np.sum(
             (states[:, :2] - target) ** 2, axis=1
         )
+        if s.terminal_safe_circle:
+            left, right = turning_circle_clearances(
+                states, c.pursuer.speed, c.pursuer.max_turn_rate, c.arena_half_width
+            )
+            valid &= (
+                np.maximum(left, right)
+                >= s.safety_margin + c.pursuer.speed * c.control_dt / 2
+            )
         return costs, valid, safe_steps, np.stack(paths, axis=1)
 
     def command(self, pose, target, diagnostics=True):
         begin = time.perf_counter()
         c = self.config
         s = self.settings
-        self.nominal = np.concatenate((self.nominal[1:], self.nominal[-1:]))
+        append = self.terminal_command if s.terminal_safe_circle else self.nominal[-1]
+        self.nominal = np.concatenate((self.nominal[1:], [append]))
         fallback = False
         for _ in range(s.iterations):
             noise = self.rng.normal(0, s.noise_std, size=(s.samples, self.steps))
@@ -129,6 +141,15 @@ class MPPITracker:
             nominal_cost = costs[selected : selected + 1]
             fallback = True
         command = float(self.nominal[0])
+        left, right = turning_circle_clearances(
+            nominal_path[0, -1],
+            c.pursuer.speed,
+            c.pursuer.max_turn_rate,
+            c.arena_half_width,
+        )
+        self.terminal_command = (
+            c.pursuer.max_turn_rate if left >= right else -c.pursuer.max_turn_rate
+        )
         self.last = dict(
             target=np.asarray(target).tolist(),
             command=command,
@@ -137,6 +158,7 @@ class MPPITracker:
             valid_samples=int(valid.sum()),
             sampling_fallback=fallback,
             nominal_cost=float(nominal_cost[0]),
+            terminal_circle_clearance=float(max(left, right)),
             milliseconds=1000 * (time.perf_counter() - begin),
             settings=asdict(s),
         )

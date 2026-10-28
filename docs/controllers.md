@@ -40,6 +40,15 @@ not guarantee a valid resulting path. A sampled witness is used if necessary.
 If no full-horizon sample is valid, the longest-safe-prefix fallback is recorded.
 No fallback changes the fixed speed or stops a car at a wall.
 
+The default approach tracker also requires a legal complete turning circle at
+the rollout endpoint. This is a sufficient terminal continuation: keep turning
+fully left or right and the exact point car stays in the square. The warm start
+appends that maneuver, and the nominal rollout is included in the next bank.
+This addresses the observed short-horizon corner failure; it is standard
+terminal-feasibility reasoning, not a claimed new pursuit strategy. Use
+`--no-terminal-circle` to reproduce the simpler tracker as an explicit ablation.
+The condition is conservative and does not certify the numerical DP component.
+
 ## Development E policy
 
 `ReactiveEvader` compares a small bank of constant-turn predictions over one

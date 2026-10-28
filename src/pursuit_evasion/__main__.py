@@ -37,6 +37,7 @@ def main():
     chase.add_argument("--samples", type=int, default=256)
     chase.add_argument("--horizon", type=float, default=1.5)
     chase.add_argument("--lion-step", type=float, default=1.0)
+    chase.add_argument("--no-terminal-circle", action="store_true")
     chase.add_argument("--max-time", type=float, default=20.0)
     chase.add_argument("--diagnostic-stride", type=int, default=10)
     chase.add_argument("--output", required=True)
@@ -103,7 +104,11 @@ def main():
             seed=a.seed,
             use_dp=not a.without_dp,
             lion_step=a.lion_step,
-            mppi_settings=MPPISettings(samples=a.samples, horizon=a.horizon),
+            mppi_settings=MPPISettings(
+                samples=a.samples,
+                horizon=a.horizon,
+                terminal_safe_circle=not a.no_terminal_circle,
+            ),
         )
         episode = run_episode(
             config,
