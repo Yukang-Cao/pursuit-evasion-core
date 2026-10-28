@@ -4,8 +4,11 @@
 2. `game.py`: first-event stopping and capture versus boundary-fault outcomes.
 3. `configs/square6d.json`: the experiment's physical parameters.
 4. `tests/test_model.py`: independent checks of the shared physical contract.
+5. `dp/grid.py`, then `dp/table.py`: grid indexing and signed-field lookup.
+6. `dp/native.py` / `native_square.cpp`: one complete offline computation path.
+7. `dp/jax_backend.py` and `dp/optimized_runner.py`: external solver adapters.
 
-The numerical backends and controller modules are added separately. They must
+Numerical backends and controller modules are added separately. They must
 consume this contract rather than redefine the vehicle model internally.
 
 ## Intended ownership

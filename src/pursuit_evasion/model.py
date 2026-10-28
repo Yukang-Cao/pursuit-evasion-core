@@ -3,6 +3,9 @@
 Joint state order: [xP, yP, thetaP, xE, yE, thetaE].
 Commands are angular velocities in rad/s, not steering angles or curvature.
 """
+
+from __future__ import annotations
+
 from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
@@ -37,9 +40,13 @@ class GameConfig:
 
     def __post_init__(self):
         if min(self.arena_half_width, self.capture_radius, self.control_dt) <= 0:
-            raise ValueError("Map size, capture radius and command interval must be positive.")
+            raise ValueError(
+                "Map size, capture radius and command interval must be positive."
+            )
         if self.boundary_rule != "first_fault_loses" or not self.point_vehicles:
-            raise ValueError("This version implements point vehicles and first_fault_loses only.")
+            raise ValueError(
+                "This version implements point vehicles and first_fault_loses only."
+            )
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -68,8 +75,12 @@ def vehicle_step(pose, turn_rate, duration, speed):
     angle = turn_rate * duration
     distance = speed * duration * np.sinc(angle / (2 * np.pi))
     mid_heading = pose[..., 2] + 0.5 * angle
-    x, y = pose[..., 0] + distance * np.cos(mid_heading), pose[..., 1] + distance * np.sin(mid_heading)
-    return np.stack(np.broadcast_arrays(x, y, wrap_angle(pose[..., 2] + angle)), axis=-1)
+    x, y = pose[..., 0] + distance * np.cos(mid_heading), pose[
+        ..., 1
+    ] + distance * np.sin(mid_heading)
+    return np.stack(
+        np.broadcast_arrays(x, y, wrap_angle(pose[..., 2] + angle)), axis=-1
+    )
 
 
 def joint_step(state, p_turn, e_turn, duration, config: GameConfig):
@@ -78,32 +89,51 @@ def joint_step(state, p_turn, e_turn, duration, config: GameConfig):
     p = vehicle_step(state[..., :3], p_turn, duration, config.pursuer.speed)
     e = vehicle_step(state[..., 3:], e_turn, duration, config.evader.speed)
     shape = np.broadcast_shapes(p.shape[:-1], e.shape[:-1])
-    return np.concatenate((np.broadcast_to(p, shape + (3,)), np.broadcast_to(e, shape + (3,))), axis=-1)
+    return np.concatenate(
+        (np.broadcast_to(p, shape + (3,)), np.broadcast_to(e, shape + (3,))), axis=-1
+    )
 
 
 def vector_field(state, p_turn, e_turn, config: GameConfig):
     """World-frame derivative, for checking PDE adapters against the simulator."""
     s = np.asarray(state, dtype=float)
-    return np.stack(np.broadcast_arrays(
-        config.pursuer.speed * np.cos(s[..., 2]),
-        config.pursuer.speed * np.sin(s[..., 2]), p_turn,
-        config.evader.speed * np.cos(s[..., 5]),
-        config.evader.speed * np.sin(s[..., 5]), e_turn), axis=-1)
+    return np.stack(
+        np.broadcast_arrays(
+            config.pursuer.speed * np.cos(s[..., 2]),
+            config.pursuer.speed * np.sin(s[..., 2]),
+            p_turn,
+            config.evader.speed * np.cos(s[..., 5]),
+            config.evader.speed * np.sin(s[..., 5]),
+            e_turn,
+        ),
+        axis=-1,
+    )
 
 
 def hamiltonian(state, gradient, config: GameConfig):
     """min_P max_E gradient dot dynamics for the declared continuous control sets."""
     s, g = np.asarray(state), np.asarray(gradient)
-    drift = (config.pursuer.speed * (np.cos(s[..., 2]) * g[..., 0] + np.sin(s[..., 2]) * g[..., 1])
-             + config.evader.speed * (np.cos(s[..., 5]) * g[..., 3] + np.sin(s[..., 5]) * g[..., 4]))
-    return drift - config.pursuer.max_turn_rate * abs(g[..., 2]) + config.evader.max_turn_rate * abs(g[..., 5])
+    drift = config.pursuer.speed * (
+        np.cos(s[..., 2]) * g[..., 0] + np.sin(s[..., 2]) * g[..., 1]
+    ) + config.evader.speed * (
+        np.cos(s[..., 5]) * g[..., 3] + np.sin(s[..., 5]) * g[..., 4]
+    )
+    return (
+        drift
+        - config.pursuer.max_turn_rate * abs(g[..., 2])
+        + config.evader.max_turn_rate * abs(g[..., 5])
+    )
 
 
 def relative_state(state):
     """Diagnostic coordinates only; walls prevent using this as the whole game state."""
     s = np.asarray(state, dtype=float)
     dx, dy, a = s[..., 3] - s[..., 0], s[..., 4] - s[..., 1], s[..., 2]
-    return np.stack((np.cos(a) * dx + np.sin(a) * dy,
-                     -np.sin(a) * dx + np.cos(a) * dy,
-                     wrap_angle(s[..., 5] - a)), axis=-1)
-
+    return np.stack(
+        (
+            np.cos(a) * dx + np.sin(a) * dy,
+            -np.sin(a) * dx + np.cos(a) * dy,
+            wrap_angle(s[..., 5] - a),
+        ),
+        axis=-1,
+    )

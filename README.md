@@ -16,6 +16,18 @@ python -m pip install -e '.[test]'
 python -m pytest
 ```
 
+Run a small native solve (requires `g++` with OpenMP):
+
+```bash
+python -m pursuit_evasion solve --config configs/square6d.json \
+  --backend native --positions 9 --headings 8 --horizon 0.2 \
+  --output /tmp/pe-square-smoke
+```
+
+Output paths are explicit and completed runs are not overwritten. This tiny
+grid is an implementation check, not an accurate control solution.
+See [numerical conventions](docs/numerics.md) before comparing backends.
+
 The initial model is two fixed-speed, bounded-turn-rate cars in a square. It
 uses a six-dimensional **world** state. It is not the older relative free-space
 game. Capture and boundary faults are reported separately.

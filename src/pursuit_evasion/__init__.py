@@ -3,4 +3,3 @@
 from .model import GameConfig, Vehicle
 
 __all__ = ["GameConfig", "Vehicle"]
-
