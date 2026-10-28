@@ -6,6 +6,7 @@ be reported. Its ENO derivatives and Runge-Kutta stages are upstream functions.
 
 import importlib.metadata
 import json
+import os
 from pathlib import Path
 import resource
 import time
@@ -14,6 +15,7 @@ import numpy as np
 
 from .grid import GridSpec, global_rate_bound, output_times, target_and_avoid
 from ..model import GameConfig
+from .options import validate_options
 
 
 def make_dynamics(config):
@@ -80,10 +82,14 @@ def solve(
     threads=8,
     history=True,
 ):
+    validate_options(horizon, output_dt, order, cfl, threads)
     import hj_reachability as hj
     import jax
     import jax.numpy as jnp
 
+    grid_mode = os.environ.get("PE_JAX_GRID_MODE", "closed").lower()
+    if grid_mode not in {"closed", "dynamic"}:
+        raise ValueError("PE_JAX_GRID_MODE must be 'closed' or 'dynamic'.")
     output = Path(output).resolve()
     if (output / "meta.json").exists():
         raise FileExistsError(f"Preserve completed solve: {output}")
@@ -109,6 +115,7 @@ def solve(
         jax_version=jax.__version__,
         hj_reachability_version=importlib.metadata.version("hj-reachability"),
         loop="counted wrapper around upstream time_integrator; same update as hj.step",
+        jit_grid_mode=grid_mode,
     )
     (output / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     bounds = hj.sets.Box(
@@ -141,8 +148,7 @@ def solve(
     )
     dynamics = make_dynamics(config)
 
-    @jax.jit
-    def step_counted(t, v, end, grid_argument, avoid_argument):
+    def integrate_counted(t, v, end, grid_argument, avoid_argument):
         def body(carry):
             tt, vv, n = carry
             tt, vv = settings.time_integrator(
@@ -155,10 +161,21 @@ def solve(
             lambda carry: carry[0] > end, body, (t, v, jnp.int32(0))
         )
 
+    # Capturing the fixed grid permits XLA to simplify its coordinate arrays.
+    # On the measured 8 GB GPU, passing the full grid dynamically increases
+    # runtime memory enough to fail at n17, which succeeds in closed mode.
+    # Keep the alternative explicit so future devices can compare both modes.
+    if grid_mode == "closed":
+        step_counted = jax.jit(lambda t, v, end: integrate_counted(t, v, end, g, avoid))
+        grid_arguments = ()
+    else:
+        step_counted = jax.jit(integrate_counted)
+        grid_arguments = (g, avoid)
+
     meta["initialization_seconds"] = time.perf_counter() - started
     t = time.perf_counter()
     executable = step_counted.lower(
-        jnp.float32(0), values, jnp.float32(-times[1]), g, avoid
+        jnp.float32(0), values, jnp.float32(-times[1]), *grid_arguments
     ).compile()
     meta["compile_seconds"] = time.perf_counter() - t
     (output / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
@@ -178,7 +195,7 @@ def solve(
     for i in range(1, len(times)):
         t = time.perf_counter()
         tt, values, n = executable(
-            jnp.float32(-times[i - 1]), values, jnp.float32(-times[i]), g, avoid
+            jnp.float32(-times[i - 1]), values, jnp.float32(-times[i]), *grid_arguments
         )
         values.block_until_ready()
         elapsed = time.perf_counter() - t
