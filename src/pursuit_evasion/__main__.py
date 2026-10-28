@@ -24,6 +24,21 @@ def main():
     solve.add_argument("--threads", type=int, default=8)
     solve.add_argument("--no-history", action="store_true")
     solve.add_argument("--output", required=True)
+    chase = commands.add_parser(
+        "chase", help="run and record the lion/MPPI/DP baseline"
+    )
+    chase.add_argument("--config", required=True)
+    chase.add_argument("--cases", required=True)
+    chase.add_argument("--case", required=True)
+    chase.add_argument("--table")
+    chase.add_argument("--without-dp", action="store_true")
+    chase.add_argument("--seed", type=int, default=0)
+    chase.add_argument("--samples", type=int, default=256)
+    chase.add_argument("--horizon", type=float, default=1.5)
+    chase.add_argument("--lion-step", type=float, default=1.0)
+    chase.add_argument("--max-time", type=float, default=20.0)
+    chase.add_argument("--diagnostic-stride", type=int, default=10)
+    chase.add_argument("--output", required=True)
     a = p.parse_args()
     if a.command == "solve":
         from .dp.grid import GridSpec
@@ -46,6 +61,46 @@ def main():
             history=not a.no_history,
         )
         print(json.dumps(result, indent=2))
+    elif a.command == "chase":
+        from pathlib import Path
+        from .dp.table import LocalTable
+        from .controllers.hybrid import LionMPPIDP
+        from .controllers.mppi import MPPISettings
+        from .controllers.opponents import ReactiveEvader
+        from .evaluation import run_episode, save_episode
+
+        config = GameConfig.load(a.config)
+        cases = json.loads(Path(a.cases).read_text())
+        matches = [x for x in cases if x["name"] == a.case]
+        if len(matches) != 1:
+            raise ValueError(
+                "Case name must identify exactly one starting configuration."
+            )
+        if not a.without_dp and not a.table:
+            raise ValueError("Provide --table, or explicitly select --without-dp.")
+        table = None if a.without_dp else LocalTable(a.table)
+        controller = LionMPPIDP(
+            config,
+            table,
+            seed=a.seed,
+            use_dp=not a.without_dp,
+            lion_step=a.lion_step,
+            mppi_settings=MPPISettings(samples=a.samples, horizon=a.horizon),
+        )
+        episode = run_episode(
+            config,
+            controller,
+            ReactiveEvader(config),
+            matches[0]["state"],
+            max_time=a.max_time,
+            seed=a.seed,
+            case_name=a.case,
+            diagnostic_stride=a.diagnostic_stride,
+        )
+        episode["method"] = "lion_mppi" if a.without_dp else "lion_mppi_dp"
+        episode["table"] = None if a.without_dp else str(Path(a.table).resolve())
+        save_episode(a.output, episode)
+        print(json.dumps({k: v for k, v in episode.items() if k != "trace"}, indent=2))
 
 
 if __name__ == "__main__":
