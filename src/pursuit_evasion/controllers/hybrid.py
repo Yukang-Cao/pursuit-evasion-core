@@ -74,7 +74,7 @@ class LionMPPIDP:
         u = self.tracker.command(np.asarray(state)[:3], goal, diagnostics)
         self.last = dict(
             mode="approach",
-            control_owner="teacher",
+            control_owner="lion_mppi",
             lion=dict(self.lion.last),
             mppi=dict(self.tracker.last),
             rejected_finish=rejected,

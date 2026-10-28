@@ -6,15 +6,15 @@ from pursuit_evasion.controllers.mppi import MPPITracker, MPPISettings
 
 
 def test_lion_ideal_target_is_on_anchor_ray_and_within_step():
-    teacher = LionTarget(step_length=1.0)
+    strategy = LionTarget(step_length=1.0)
     s = np.array([-1.0, 0, 0, 1.0, 1.0, 0])
-    teacher.reset(s)
-    g = teacher.target_at(s, 0)
+    strategy.reset(s)
+    g = strategy.target_at(s, 0)
     assert np.linalg.norm(g - s[:2]) <= 1 + 1e-12
-    ray = s[3:5] - teacher.anchor
-    delta = g - teacher.anchor
+    ray = s[3:5] - strategy.anchor
+    delta = g - strategy.anchor
     assert abs(ray[0] * delta[1] - ray[1] * delta[0]) < 1e-12
-    np.testing.assert_array_equal(teacher.target_at(s, 0.1), g)
+    np.testing.assert_array_equal(strategy.target_at(s, 0.1), g)
 
 
 def test_mppi_reproducible_bounded_and_resettable():

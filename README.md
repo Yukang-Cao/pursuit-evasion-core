@@ -41,7 +41,7 @@ python -m pursuit_evasion chase --config configs/square6d.json \
   --output /tmp/pe-approach.json
 ```
 
-Use `--without-dp` to run the same geometric teacher/tracker without the DP
+Use `--without-dp` to run the same lion-guided strategy and MPPI tracker without the DP
 finish. The development cases are diagnostics, not a final benchmark.
 Read [the controller walkthrough](docs/controllers.md) and
 [profiling scope](docs/profiling.md) before interpreting outcomes or latency.

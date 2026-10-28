@@ -11,7 +11,7 @@ or delete those records.
   checks live in `model.py`, `game.py`, `geometry.py` and `tests/`.
 - Offline solver adapters and a portable signed-field reader live in `dp/`.
   Public solvers remain separately installed dependencies.
-- The geometric teacher, MPPI tracker, partial-DP finish and development evader
+- The lion-guided strategy, MPPI tracker, partial-DP finish and development evader
   live in `controllers/`. Physics comes from the common model.
 - Explicit configurations, episode recording and demonstration export replace
   reliance on one notebook, a shell's current directory or report-builder state.

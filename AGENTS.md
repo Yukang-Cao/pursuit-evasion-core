@@ -4,6 +4,8 @@ This repository contains reusable research code, not the private research diary.
 Read `docs/model.md` before changing dynamics, costs, controls, or boundary rules.
 Read `docs/architecture.md` for entrypoints and module responsibilities.
 
+- Reserve “teacher” for imitation/RL contexts. Elsewhere name the actual
+  strategy or controller, such as lion-guided strategy or MPPI tracker.
 - Keep a single explicit state order and unit convention across every backend.
 - Distinguish physical capture, boundary faults, timeouts, and unresolved queries.
 - Preserve negative results; a successful solve is not a correctness proof.

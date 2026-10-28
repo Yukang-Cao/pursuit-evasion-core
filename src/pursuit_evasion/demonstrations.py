@@ -68,7 +68,8 @@ def export_demonstrations(episode_paths, output, test_cases=()):
             commands.append(u / bound)
             target = row["pursuer"].get("lion", {}).get("target", [np.nan, np.nan])
             targets.append(np.asarray(target) / L)
-            actor_masks.append(owner == "teacher")
+            # Accept historical episode records without relabeling their evidence.
+            actor_masks.append(owner in ("lion_mppi", "teacher"))
             context = row["pursuer"].get("lion", {})
             teacher_update_states.append(
                 context.get("observation_at_update", [np.nan] * 6)

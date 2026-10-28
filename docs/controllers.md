@@ -17,10 +17,10 @@ The target update period and physical control interval are separate parameters.
 The default target period is 0.25 s, but P's sampled and executed controls can
 change every 0.05 s. The tracker predicts P only; it is not a nested P/E game.
 
-## Teacher scope
+## Lion-guided strategy
 
 The anchor starts at P's initial position. An ideal target lies on the ray from
-that anchor to the currently observed E and within the teacher's step disk.
+that anchor to the currently observed E and within the target-selection step disk.
 When vehicle tracking breaks that alignment, an explicit recovery target is
 used. This is a **lion-guided vehicle adaptation**, not an implementation-level
 claim of the original polygon capture theorem. A nearby geometric target can
@@ -64,7 +64,9 @@ action cloning/PPO is the intended first learned variant for cheap onboard
 execution. A waypoint-output student can later be compared using the same data.
 The observation includes the legitimate episode anchor and previous P command;
 it does not include the target label. DP-owned commands are masked from the
-approach-policy cloning loss. Failures remain in the raw dataset and manifest.
+approach-policy cloning loss. Current episode records label approach actions
+`lion_mppi`; the exporter also accepts the historical `teacher` label.
+Failures remain in the raw dataset and manifest.
 
 PPO must collect new learner interactions after cloning. The critic predicts
 returns under the current policy/opponents, not a certified minimax time.
