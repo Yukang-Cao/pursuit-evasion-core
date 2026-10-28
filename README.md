@@ -11,6 +11,10 @@ outside the repository.
 2. Follow [the code map](docs/architecture.md).
 3. Check [what is implemented](docs/status.md) before using an example.
 
+Follow [setup](docs/setup.md) for a tested lightweight CPU installation and
+separate public-solver environments. The [migration guide](docs/migration.md)
+explains which code belongs here and which research artifacts remain local.
+
 ```bash
 python -m pip install -e '.[test]'
 python -m pytest
