@@ -4,11 +4,11 @@ import time
 import numpy as np
 
 from ..model import joint_step
-from ..game import advance, clearance
+from ..game import predict_pairs, clearance
 
 
 class DPFinish:
-    def __init__(self, table, config=None, p_actions=5, e_actions=9):
+    def __init__(self, table, config=None, p_actions=5, e_actions=17):
         self.table = table
         self.config = table.config if config is None else config
         # A PDE table does not depend on controller sample period; all physical
@@ -51,12 +51,15 @@ class DPFinish:
         )
         kinds = np.full(cost.shape, "continuation", object)
         if near_capture or near_wall:
-            for i, u in enumerate(self.P):
-                for j, v in enumerate(self.E):
-                    event = advance(state, float(u), float(v), c)
-                    if event.terminal:
-                        cost[i, j] = event.elapsed if event.pursuer_success else np.inf
-                        kinds[i, j] = event.event
+            _, event_times, event_codes = predict_pairs(state, self.P, self.E, c)
+            cost = np.where((event_codes == 1) | (event_codes == 3), event_times, cost)
+            cost = np.where(event_codes == 2, np.inf, cost)
+            for code, label in [
+                (1, "capture"),
+                (2, "pursuer_boundary_fault"),
+                (3, "evader_boundary_fault"),
+            ]:
+                kinds[event_codes == code] = label
         cost = np.where(np.isfinite(cost), cost, np.inf)
         worst = cost.max(axis=1)
         limit = self.table.times[-1] if remaining is None else float(remaining)

@@ -104,6 +104,13 @@ def run_episode(
             case=case_name,
             seed=seed,
             config=config.to_dict(),
+            controller_settings={
+                "mppi": asdict(pursuer.tracker.settings),
+                "lion": asdict(pursuer.lion),
+                "DP_enabled": pursuer.use_dp,
+                "DP_P_actions": len(pursuer.dp.P) if pursuer.dp else None,
+                "DP_E_actions": len(pursuer.dp.E) if pursuer.dp else None,
+            },
             initial=list(initial),
             outcome=event or "timeout",
             physical_capture=event == "capture",
@@ -114,7 +121,7 @@ def run_episode(
             p_controller_ms=stats(p_times),
             e_controller_ms=stats(e_times),
             handoffs=pursuer.handoffs,
-            failed_finishes=pursuer.failed_finishes,
+            abandoned_finishes=pursuer.abandoned_finishes,
             trace=trace,
             timing_scope="laptop P/E controller calls; logical simulation time; latency not injected; no Jetson claim",
         )

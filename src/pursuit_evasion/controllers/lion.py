@@ -61,5 +61,6 @@ class LionTarget:
             mode=mode,
             cross_track_to_anchor_ray=cross_error,
             target_updated_at=float(time),
+            observation_at_update=np.asarray(state).tolist(),
         )
         return goal.copy()

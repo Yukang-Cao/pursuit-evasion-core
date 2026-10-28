@@ -123,3 +123,74 @@ def advance(
     tied = [event for event in events if event[0] <= earliest + 2e-8]
     elapsed, _, event = min(tied, key=lambda x: x[1])
     return Transition(pose(elapsed), elapsed, event)
+
+
+def predict_pairs(state, p_turns, e_turns, config: GameConfig, duration=None):
+    """Batch successors and first events for a pair of command catalogues.
+
+    Codes: 0 none, 1 capture, 2 P fault, 3 E fault. Positive-endpoint intervals
+    that could contain a crossing use the scalar adaptive detector. Ordinary
+    crossings use vector bisection, avoiding a Python root search per pair.
+    """
+    dt = config.control_dt if duration is None else float(duration)
+    p_turns = np.asarray(p_turns, dtype=float)
+    e_turns = np.asarray(e_turns, dtype=float)
+    if p_turns.ndim != 1 or e_turns.ndim != 1:
+        raise ValueError("Command catalogues must be vectors.")
+    if (
+        np.max(abs(p_turns)) > config.pursuer.max_turn_rate + 1e-12
+        or np.max(abs(e_turns)) > config.evader.max_turn_rate + 1e-12
+    ):
+        raise ValueError("Command catalogue exceeds turn limits.")
+    shape = (len(p_turns), len(e_turns))
+    P, E = p_turns[:, None], e_turns[None, :]
+    s = np.asarray(state, dtype=float)
+
+    def poses(t):
+        return joint_step(s, P, E, t, config)
+
+    functions = [
+        (lambda z: clearance(z[..., :3], config), config.pursuer.speed),
+        (
+            lambda z: np.linalg.norm(z[..., :2] - z[..., 3:5], axis=-1)
+            - config.capture_radius,
+            config.pursuer.speed + config.evader.speed,
+        ),
+        (lambda z: clearance(z[..., 3:], config), config.evader.speed),
+    ]
+    roots = []
+    for measure, bound in functions:
+        root = np.full(shape, np.inf)
+        left = 0.0
+        va = np.broadcast_to(measure(poses(0.0)), shape).copy()
+        root[va <= 0] = 0.0
+        for right in np.linspace(0, dt, 9)[1:]:
+            vb = measure(poses(right))
+            active = ~np.isfinite(root)
+            crossing = active & (vb <= 0)
+            if crossing.any():
+                lo, hi = np.full(shape, left), np.full(shape, right)
+                for _ in range(22):
+                    mid = (lo + hi) / 2
+                    vm = measure(poses(mid))
+                    hi = np.where(crossing & (vm <= 0), mid, hi)
+                    lo = np.where(crossing & (vm > 0), mid, lo)
+                root[crossing] = (lo[crossing] + hi[crossing]) / 2
+            ambiguous = active & ~crossing & (va + vb <= bound * (right - left))
+            for i, j in np.argwhere(ambiguous):
+
+                def f(t):
+                    z = joint_step(s, p_turns[i], e_turns[j], left + t, config)
+                    return float(measure(z))
+
+                found = _first_zero(f, bound, float(right - left))
+                if found is not None:
+                    root[i, j] = left + found
+            va, left = vb, float(right)
+        roots.append(root)
+    earliest = np.minimum(np.minimum(roots[0], roots[1]), roots[2])
+    finite = np.isfinite(earliest)
+    codes = np.where(
+        roots[0] <= earliest + 2e-8, 2, np.where(roots[1] <= earliest + 2e-8, 1, 3)
+    )
+    return poses(dt), np.where(finite, earliest, dt), np.where(finite, codes, 0)

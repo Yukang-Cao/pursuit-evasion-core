@@ -34,6 +34,8 @@ def export_demonstrations(episode_paths, output, test_cases=()):
     actor_masks = []
     episode_ids = []
     splits = []
+    teacher_update_states = []
+    teacher_context_times = []
     manifest = []
     for eid, path in enumerate(episode_paths):
         path = Path(path)
@@ -67,6 +69,16 @@ def export_demonstrations(episode_paths, output, test_cases=()):
             target = row["pursuer"].get("lion", {}).get("target", [np.nan, np.nan])
             targets.append(np.asarray(target) / L)
             actor_masks.append(owner == "teacher")
+            context = row["pursuer"].get("lion", {})
+            teacher_update_states.append(
+                context.get("observation_at_update", [np.nan] * 6)
+            )
+            teacher_context_times.append(
+                [
+                    row["time"] - context.get("target_updated_at", row["time"]),
+                    row["pursuer"].get("cooldown_remaining", 0.0),
+                ]
+            )
             episode_ids.append(eid)
             splits.append(split)
             previous = u
@@ -91,6 +103,8 @@ def export_demonstrations(episode_paths, output, test_cases=()):
         approach_mask=np.asarray(actor_masks, bool),
         episode_ids=np.asarray(episode_ids, np.int32),
         test_mask=np.asarray(splits, bool),
+        teacher_observation_at_update=np.asarray(teacher_update_states, np.float32),
+        teacher_goal_age_and_cooldown=np.asarray(teacher_context_times, np.float32),
     )
     meta = dict(
         status="demonstration export only; no model trained",
@@ -104,6 +118,7 @@ def export_demonstrations(episode_paths, output, test_cases=()):
         leakage_rule="whole named starting configurations assigned to one split; no teacher target in observations",
         retained_failures=True,
         DP_actions_masked_for_approach_imitation=True,
+        observation_scope="Compact observations are not asserted to reproduce a stateful MPPI teacher exactly. Raw episodes and explicit target-update history are retained for recurrent/augmented students.",
     )
     (output / "manifest.json").write_text(json.dumps(meta, indent=2) + "\n")
     return meta

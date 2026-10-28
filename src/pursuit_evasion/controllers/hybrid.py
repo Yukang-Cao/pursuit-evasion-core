@@ -36,13 +36,15 @@ class LionMPPIDP:
         self.deadline = None
         self.cooldown_until = 0.0
         self.handoffs = 0
-        self.failed_finishes = 0
+        self.abandoned_finishes = 0
 
     def command(self, state, elapsed, diagnostics=True):
         begin = time.perf_counter()
         rejected = None
         u = None
+        queried = False
         if self.use_dp and elapsed >= self.cooldown_until:
+            queried = True
             remaining = None if self.deadline is None else self.deadline - elapsed
             u = self.dp.command(state, remaining)
             if u is not None:
@@ -55,13 +57,17 @@ class LionMPPIDP:
                     dp=dict(self.dp.last),
                     deadline=self.deadline,
                     handoffs=self.handoffs,
-                    failed_finishes=self.failed_finishes,
+                    abandoned_finishes=self.abandoned_finishes,
                     milliseconds=1000 * (time.perf_counter() - begin),
                 )
                 return u
             if self.deadline is not None:
-                rejected = "dp_unresolved_or_deadline_exceeded"
-                self.failed_finishes += 1
+                rejected = (
+                    "deadline_expired"
+                    if remaining <= 0
+                    else "no_action_within_remaining_numerical_budget"
+                )
+                self.abandoned_finishes += 1
                 self.deadline = None
                 self.cooldown_until = elapsed + 0.5
         goal = self.lion.target_at(state, elapsed)
@@ -72,8 +78,12 @@ class LionMPPIDP:
             lion=dict(self.lion.last),
             mppi=dict(self.tracker.last),
             rejected_finish=rejected,
+            dp_check=(
+                dict(self.dp.last) if queried else {"skipped": "disabled_or_cooldown"}
+            ),
+            cooldown_remaining=max(0.0, self.cooldown_until - elapsed),
             handoffs=self.handoffs,
-            failed_finishes=self.failed_finishes,
+            abandoned_finishes=self.abandoned_finishes,
             milliseconds=1000 * (time.perf_counter() - begin),
         )
         return u
