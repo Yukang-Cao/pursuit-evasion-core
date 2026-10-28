@@ -159,6 +159,7 @@ def solve(
         jnp.float32(0), values, jnp.float32(-times[1])
     ).compile()
     meta["compile_seconds"] = time.perf_counter() - t
+    (output / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     del target_np, avoid_np
     arrival = np.where(initial <= 0, 0.0, np.nan).astype(np.float32)
     previous = initial

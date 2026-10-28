@@ -2,6 +2,7 @@
 
 import argparse
 import json
+from pathlib import Path
 
 from .model import GameConfig
 
@@ -49,20 +50,37 @@ def main():
             from .dp.jax_backend import solve as run
         else:
             from .dp.optimized import solve as run
-        result = run(
-            GameConfig.load(a.config),
-            GridSpec(a.positions, a.headings, a.extent),
-            a.output,
-            horizon=a.horizon,
-            output_dt=a.output_dt,
-            order=a.order,
-            cfl=a.cfl,
-            threads=a.threads,
-            history=not a.no_history,
-        )
+        try:
+            result = run(
+                GameConfig.load(a.config),
+                GridSpec(a.positions, a.headings, a.extent),
+                a.output,
+                horizon=a.horizon,
+                output_dt=a.output_dt,
+                order=a.order,
+                cfl=a.cfl,
+                threads=a.threads,
+                history=not a.no_history,
+            )
+        except FileExistsError:
+            raise  # Never alter a completed run that the user tried to overwrite.
+        except Exception as exc:
+            path = Path(a.output) / "meta.json"
+            metadata = (
+                json.loads(path.read_text())
+                if path.exists()
+                else {"backend": a.backend}
+            )
+            metadata.update(
+                status="failed",
+                failure_type=type(exc).__name__,
+                failure_message=str(exc),
+            )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(metadata, indent=2) + "\n")
+            raise
         print(json.dumps(result, indent=2))
     elif a.command == "chase":
-        from pathlib import Path
         from .dp.table import LocalTable
         from .controllers.hybrid import LionMPPIDP
         from .controllers.mppi import MPPISettings
