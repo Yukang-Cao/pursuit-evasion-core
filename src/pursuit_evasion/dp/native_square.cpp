@@ -116,12 +116,17 @@ int main(int argc, char **argv) {
     avoid = std::max(std::abs(x[q[0]]), std::abs(x[q[1]])) - L + 1e-6f;
   };
 #pragma omp parallel for schedule(static)
-  for (size_t j = 0; j < N; j++) {
+  for (size_t block = 0; block < N / nh; block++) {
+    const size_t begin = block * nh;
     Real target, avoid;
-    surfaces(decode(j), target, avoid);
-    a[j] = std::max(target, avoid);
-    if (a[j] <= 0)
-      arrival[j] = 0;
+    surfaces(decode(begin), target, avoid);
+    const Real initial = std::max(target, avoid);
+    for (int e_heading = 0; e_heading < nh; e_heading++) {
+      const size_t j = begin + e_heading;
+      a[j] = initial;
+      if (initial <= 0)
+        arrival[j] = 0;
+    }
   }
   double init_seconds = seconds(start), update_seconds = 0, write_seconds = 0;
   int steps = 0, frames = 0;
@@ -142,35 +147,40 @@ int main(int argc, char **argv) {
   auto advance = [&](const Real *src, Real *dst, Real dt, const Real *base,
                      double tau) {
 #pragma omp parallel for schedule(static)
-    for (size_t j = 0; j < N; j++) {
-      const auto q = decode(j);
-      const std::array<Real, 6> f = {vp * cs[q[2]], vp * sn[q[2]], 0,
-                                     ve * cs[q[5]], ve * sn[q[5]], 0};
-      std::array<Real, 6> g;
-      Real diss = 0, H = 0;
-      for (int k = 0; k < 6; k++) {
-        Real lm, rp;
-        slopes(src, j, stride[k], q[k], shape[k], (k == 2 || k == 5) ? dh : dx,
-               k == 2 || k == 5, order, lm, rp);
-        g[k] = (lm + rp) * .5f;
-        Real alpha = k == 2 ? wp : k == 5 ? we : std::abs(f[k]);
-        diss += alpha * (rp - lm) * .5f;
-        H += f[k] * g[k];
+    for (size_t block = 0; block < N / nh; block++) {
+      const size_t begin = block * nh;
+      auto q = decode(begin);
+      for (int e_heading = 0; e_heading < nh; e_heading++) {
+        const size_t j = begin + e_heading;
+        q[5] = e_heading;
+        const std::array<Real, 6> f = {vp * cs[q[2]], vp * sn[q[2]], 0,
+                                       ve * cs[q[5]], ve * sn[q[5]], 0};
+        std::array<Real, 6> g;
+        Real diss = 0, H = 0;
+        for (int k = 0; k < 6; k++) {
+          Real lm, rp;
+          slopes(src, j, stride[k], q[k], shape[k],
+                 (k == 2 || k == 5) ? dh : dx, k == 2 || k == 5, order, lm, rp);
+          g[k] = (lm + rp) * .5f;
+          Real alpha = k == 2 ? wp : k == 5 ? we : std::abs(f[k]);
+          diss += alpha * (rp - lm) * .5f;
+          H += f[k] * g[k];
+        }
+        H += -wp * std::abs(g[2]) + we * std::abs(g[5]);
+        Real value = src[j] + dt * (H + diss);
+        if (base) {
+          value = .5f * (base[j] + value);
+        }
+        if (order == 1 || base) {
+          Real previous = base ? base[j] : src[j];
+          const Real avoid =
+              std::max(std::abs(x[q[0]]), std::abs(x[q[1]])) - L + 1e-6f;
+          value = std::max(std::min(value, previous), avoid);
+          if (previous > 0 && value <= 0 && std::isnan(arrival[j]))
+            arrival[j] = Real(tau) + dt * previous / (previous - value);
+        }
+        dst[j] = value;
       }
-      H += -wp * std::abs(g[2]) + we * std::abs(g[5]);
-      Real value = src[j] + dt * (H + diss);
-      if (base) {
-        value = .5f * (base[j] + value);
-      }
-      if (order == 1 || base) {
-        Real previous = base ? base[j] : src[j];
-        const Real avoid =
-            std::max(std::abs(x[q[0]]), std::abs(x[q[1]])) - L + 1e-6f;
-        value = std::max(std::min(value, previous), avoid);
-        if (previous > 0 && value <= 0 && std::isnan(arrival[j]))
-          arrival[j] = Real(tau) + dt * previous / (previous - value);
-      }
-      dst[j] = value;
     }
   };
   double tau = 0;

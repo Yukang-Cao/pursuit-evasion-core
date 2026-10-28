@@ -122,7 +122,7 @@ def solve(
     )
     target_np, avoid_np = target_and_avoid(grid, config)
     initial = np.maximum(target_np, avoid_np)
-    target, avoid = jax.device_put(target_np), jax.device_put(avoid_np)
+    avoid = jax.device_put(avoid_np)
     values = jax.device_put(initial)
     values.block_until_ready()
     # Same pointwise LF coefficients as the native/ODP kernels. Adjust CFL to
@@ -142,11 +142,13 @@ def solve(
     dynamics = make_dynamics(config)
 
     @jax.jit
-    def step_counted(t, v, end):
+    def step_counted(t, v, end, grid_argument, avoid_argument):
         def body(carry):
             tt, vv, n = carry
-            tt, vv = settings.time_integrator(settings, dynamics, g, tt, vv, end)
-            vv = jnp.maximum(jnp.minimum(vv, carry[1]), avoid)
+            tt, vv = settings.time_integrator(
+                settings, dynamics, grid_argument, tt, vv, end
+            )
+            vv = jnp.maximum(jnp.minimum(vv, carry[1]), avoid_argument)
             return tt, vv, n + 1
 
         return jax.lax.while_loop(
@@ -156,7 +158,7 @@ def solve(
     meta["initialization_seconds"] = time.perf_counter() - started
     t = time.perf_counter()
     executable = step_counted.lower(
-        jnp.float32(0), values, jnp.float32(-times[1])
+        jnp.float32(0), values, jnp.float32(-times[1]), g, avoid
     ).compile()
     meta["compile_seconds"] = time.perf_counter() - t
     (output / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
@@ -176,7 +178,7 @@ def solve(
     for i in range(1, len(times)):
         t = time.perf_counter()
         tt, values, n = executable(
-            jnp.float32(-times[i - 1]), values, jnp.float32(-times[i])
+            jnp.float32(-times[i - 1]), values, jnp.float32(-times[i]), g, avoid
         )
         values.block_until_ready()
         elapsed = time.perf_counter() - t
