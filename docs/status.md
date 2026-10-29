@@ -29,13 +29,15 @@ and unresolved failures; successful computation is not a capture certificate.
 The fixed-map solver completed a four-second budget using a retained two-second
 prefix and an extension, with matching resumed/monolithic numerical tests.
 
-A new independent [analytic exclusion check](reversible-analytic-check.md) proves
-that some short-time numerical capture labels are false, including at exact
-stored grid nodes. It uses a legal current-command-copying E response in free
-space. This rules out a query-interpolation-only explanation for those labels.
-The check is diagnostic and does not modify solver or controller behavior. A
-reliable numerical repair and the original problematic initial state's optimal
-capture time remain unresolved.
+Current B1 map evidence covers boundary-wall cases, not interior obstacles.
+The corrected six named square-wall starts produced six B1 captures and five
+approach-only captures against a declared reactive heuristic E. B1 is not faster
+in every case. The separate scripted-E stall and log-MPPI repair are development
+diagnostics. See [the B1 rule and validation scope](reversible-b1.md).
+
+The [numerical exclusion diagnostic](reversible-analytic-check.md) is preserved
+for later inspection. It is not the main B1 deliverable or the current research
+focus; further numerical repair is deferred.
 
 See [the reversible model](reversible-model.md) and the per-module documents linked
 from the README. Generated fields, replays and reports remain outside this repo.

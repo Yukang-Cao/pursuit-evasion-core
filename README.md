@@ -8,7 +8,8 @@ outside the repository.
 ## Start here
 
 The current reversible-car work is in [`reversible/`](src/pursuit_evasion/reversible/).
-Start with [its physical model](docs/reversible-model.md), then the
+Start with [its physical model](docs/reversible-model.md) and
+[the actual B1 switching rule](docs/reversible-b1.md), then the
 [reused MPPI tracker](docs/reversible-mppi.md), [free-space DP](docs/reversible-free-dp.md),
 [fixed-map DP](docs/reversible-world-dp.md), and [UCT prototype](docs/reversible-uct.md).
 A small [analytic capture check](docs/reversible-analytic-check.md) documents a
