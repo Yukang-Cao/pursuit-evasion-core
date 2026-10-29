@@ -85,6 +85,56 @@ def test_waypoint_arrival_does_not_hide_wall_hit_in_executed_first_command():
     assert planner.last["fallback"] == "longest_valid_prefix"
 
 
+def test_safe_acceleration_away_from_wall_is_not_rejected_by_distance_bound():
+    c = ReversibleConfig()
+    planner = ReversibleMPPI(
+        c, MPPISettings(samples=16), clearance=WorldMap(3).clearance
+    )
+    # Actual t=3.5s state from the selected transfer diagnostic. The old bound
+    # rejected this entire legal constant-control path at the first interval.
+    pose = np.array(
+        [
+            2.9998628816494235,
+            1.2357163407152796,
+            1.784973075692088,
+            0.000981554854506416,
+        ]
+    )
+    target = np.array([2.8437984222894044, 0.2479694680172866])
+    commands = np.broadcast_to([2.0, 1.0], (1, planner.steps, 2)).copy()
+    costs, valid, _, _ = planner._rollout(pose, commands, target)
+    assert valid[0]
+    assert costs[0] == pytest.approx(99.01002302057682, abs=1e-9)
+    assert planner._exact_wall_checks > 0
+
+
+def test_exact_interval_check_detects_obstacle_between_clear_endpoints():
+    c = ReversibleConfig()
+    world = WorldMap(None, ((0.04, 0.06, -0.01, 0.01),))
+    planner = ReversibleMPPI(
+        c, MPPISettings(samples=16, horizon=0.05), clearance=world.clearance
+    )
+    commands = np.zeros((1, 1, 2))
+    _, valid, _, path = planner._rollout([0, 0, 0, 2], commands, [1, 0])
+    assert world.clearance(path[0, 0, :2]) > 0
+    assert world.clearance(path[0, -1, :2]) > 0
+    assert not valid[0]
+
+
+def test_exact_checks_stop_after_navigation_goal_but_not_before_it():
+    c = ReversibleConfig()
+    world = WorldMap(0.4)
+    planner = ReversibleMPPI(
+        c, MPPISettings(samples=16, horizon=0.5), clearance=world.clearance
+    )
+    _, valid, _, path = planner._rollout(
+        [0, 0, 0, 2], np.zeros((1, planner.steps, 2)), [0.35, 0]
+    )
+    assert valid[0]
+    assert world.clearance(path[0, -1, :2]) < 0
+    assert planner._skipped_terminal_intervals > 0
+
+
 def test_blocked_samples_receive_zero_update_weight():
     nominal = np.zeros((2, 2))
     noise = np.array([[[1, 0], [-1, 0]], [[1, 0], [-1, 0]]], float)

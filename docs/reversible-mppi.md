@@ -69,11 +69,21 @@ The first physical command interval is always checked for wall clearance, even
 if the local waypoint is already reached. Ending a local cost does not shorten
 the command that the pursuit-evasion simulator actually executes.
 
-For each predicted interval, the tracker requires endpoint clearances to exceed
-half the interval duration times its maximum speed. The signed clearance must
-be 1-Lipschitz. This is a conservative continuous-path check: it can reject a
-legal grazing path. It is not the old complete-circle constraint and is not an
-exact physical wall-event calculation. Report this distinction in diagnostics.
+For each predicted interval, positive endpoint clearances whose sum exceeds the
+interval's maximum speed times its duration certify safety. The signed clearance
+must be 1-Lipschitz. If that inexpensive certificate fails, the tracker checks the
+actual held-command path: analytic square/rectangle intersections for WorldMap,
+or adaptive numerical zero finding for a general clearance callback.
+
+An earlier prototype incorrectly treated failure of the conservative distance
+bound as a collision. In a recorded boundary case it rejected a legal path that
+accelerated away from a wall. That implementation is preserved in the local audit
+records; the corrected code refines ambiguous intervals rather than rejecting
+them. The tracking objective and MPPI update did not change.
+
+Checks stop after the first local goal or blocked event, except that the full
+first physically executed command is always protected. Diagnostics report the
+number of exact refinements, cheap certificates, and skipped post-terminal checks.
 
 ## Interface
 

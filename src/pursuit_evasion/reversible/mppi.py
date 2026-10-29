@@ -9,7 +9,10 @@ from dataclasses import dataclass
 import time
 import numpy as np
 
+from ..game import _first_zero
 from ._cfree_mppi import navigation_costs, raw_noise_update
+from .events_geometry import first_wall_time
+from .game import WorldMap
 from .model import vehicle_step
 
 
@@ -30,7 +33,7 @@ class ReversibleMPPI:
     """Position-goal tracker; it does not solve a nested pursuer/evader game.
 
     ``clearance(points[...,2])`` returns signed distance to blocked space, positive
-    in the free region. It must be 1-Lipschitz for the interval safety margin.
+    in the free region. It must be 1-Lipschitz for the interval safety certificate.
     The default is the configured square. Supply an all-infinity callback for
     free space. Capture and exact physical wall events are owned by the simulator.
     """
@@ -45,6 +48,12 @@ class ReversibleMPPI:
         self.limits = getattr(config, role)
         self.seed = int(seed)
         self.clearance = clearance
+        owner = getattr(clearance, "__self__", None)
+        self._map = (
+            WorldMap(config.arena_half_width)
+            if clearance is None
+            else owner if isinstance(owner, WorldMap) else None
+        )
         self.steps = round(settings.horizon / config.control_dt)
         if self.steps < 1 or not np.isclose(
             self.steps * config.control_dt, settings.horizon
@@ -85,6 +94,9 @@ class ReversibleMPPI:
         self.rng = np.random.default_rng(self.seed)
         self.nominal = np.zeros((self.steps, 2))
         self.last = {}
+        self._exact_wall_checks = 0
+        self._clear_interval_certificates = 0
+        self._skipped_terminal_intervals = 0
 
     def _clearance(self, points):
         points = np.asarray(points)
@@ -97,6 +109,23 @@ class ReversibleMPPI:
         if np.isnan(result).any():
             raise ValueError("Map clearance returned NaN.")
         return result
+
+    def _wall_time(self, pose, control):
+        self._exact_wall_checks += 1
+        if self._map is not None:
+            return first_wall_time(
+                pose, control, self.config.control_dt, self.limits, self._map
+            )
+        # Retain the callback API for arbitrary signed-distance maps. Ordinary
+        # WorldMap callbacks use the analytic square/rectangle geometry above.
+        return _first_zero(
+            lambda t: float(
+                self._clearance(vehicle_step(pose, control, t, self.limits)[:2])
+            ),
+            self.limits.max_abs_speed,
+            self.config.control_dt,
+            time_tolerance=1e-10,
+        )
 
     def _rollout(self, pose, commands, target):
         """Return costs, validity, safe-prefix lengths, paths for [sample,time,2]."""
@@ -114,6 +143,11 @@ class ReversibleMPPI:
         blocked = np.zeros((self.steps + 1, count), bool)
         clearance = self._clearance(paths[0, :, :2])
         blocked[0] = clearance <= 0
+        blocked_seen = blocked[0].copy()
+        goal_seen = (
+            np.sum((paths[0, :, :2] - target) ** 2, axis=1)
+            <= self.settings.goal_tolerance**2
+        )
         for step in range(self.steps):
             before = paths[step]
             after = vehicle_step(
@@ -121,12 +155,30 @@ class ReversibleMPPI:
             )
             paths[step + 1] = after
             next_clearance = self._clearance(after[:, :2])
-            # Every point in an interval is within vmax_interval*dt/2 of one
-            # endpoint. Positive clearance above that bound protects the arc.
-            # This is a conservative planning check, not an exact wall event.
+            # A failed distance certificate means "check the actual arc", not
+            # "reject the trajectory". The previous implementation incorrectly
+            # rejected some safe motions accelerating away from a nearby wall.
+            active = ~blocked_seen & (~goal_seen if step else True)
+            self._skipped_terminal_intervals += int((~active).sum())
             interval_speed = np.maximum(abs(before[:, 3]), abs(after[:, 3]))
-            margin = interval_speed * self.config.control_dt / 2
-            blocked[step + 1] = np.minimum(clearance, next_clearance) <= margin
+            certified = (
+                (clearance > 0)
+                & (next_clearance > 0)
+                & (clearance + next_clearance > interval_speed * self.config.control_dt)
+            )
+            self._clear_interval_certificates += int((active & certified).sum())
+            endpoint_hit = active & ((clearance <= 0) | (next_clearance <= 0))
+            blocked[step + 1, endpoint_hit] = True
+            ambiguous = active & ~certified & ~endpoint_hit
+            for i in np.flatnonzero(ambiguous):
+                blocked[step + 1, i] = (
+                    self._wall_time(before[i], commands[i, step]) is not None
+                )
+            blocked_seen |= blocked[step + 1]
+            goal_seen |= (
+                np.sum((after[:, :2] - target) ** 2, axis=1)
+                <= self.settings.goal_tolerance**2
+            ) & ~blocked_seen
             clearance = next_clearance
         result = navigation_costs(
             paths,
@@ -152,6 +204,9 @@ class ReversibleMPPI:
         pose, target = np.asarray(pose, float), np.asarray(target, float)
         if pose.shape != (4,) or target.shape != (2,) or not np.isfinite(target).all():
             raise ValueError("Expected pose[4] and finite position target[2].")
+        self._exact_wall_checks = 0
+        self._clear_interval_certificates = 0
+        self._skipped_terminal_intervals = 0
         # Preserve the source controller's circular warm-start shift.
         self.nominal = np.roll(self.nominal, -1, axis=0)
         fallback = "none"
@@ -224,7 +279,10 @@ class ReversibleMPPI:
             "fallback": fallback,
             "effective_samples": float(1.0 / np.sum(weights**2)),
             "goal_tolerance": self.settings.goal_tolerance,
-            "planning_clearance_rule": "max endpoint speed times control_dt/2",
+            "planning_clearance_rule": "safe distance certificate; exact ambiguous-interval check",
+            "exact_wall_checks": self._exact_wall_checks,
+            "clear_interval_certificates": self._clear_interval_certificates,
+            "skipped_terminal_intervals": self._skipped_terminal_intervals,
             "wall_seconds": time.perf_counter() - begin,
         }
         if diagnostics:
