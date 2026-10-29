@@ -21,7 +21,7 @@ A first adversarial UCT implementation uses DP/signed-field leaf estimates. It i
 **not yet the planned B2 using B1 rollout continuations**. Cloning and PPO are not
 implemented for the revised model. No robot or Jetson result is claimed.
 
-Current integrated check: 141 tests passed; two optional Torch reference checks
+Current integrated check: 147 tests passed; two optional Torch reference checks
 were skipped in the minimal test environment and passed separately in the Torch
 CPU environment. Some numerical-table feedback cases still fail their predicted
 capture deadline. Refinement and obstacle-transfer diagnostics document both successful captures
@@ -39,6 +39,20 @@ capture time remain unresolved.
 
 See [the reversible model](reversible-model.md) and the per-module documents linked
 from the README. Generated fields, replays and reports remain outside this repo.
+
+## Interactive inspection and optional sampler
+
+A Python-backed local value viewer now exposes 5D slices, world-pose editing,
+coverage selection, explicit controller/opponent labels, recorded MPPI waypoints,
+and figure export. It queries completed tables without recomputing DP. See
+[the viewer guide](value-viewer.md).
+
+The reversible tracker also offers a signed normal-times-lognormal sampler.
+The declared high-variance configuration escaped the selected near-wall Gaussian
+stall and captured in three tested seeds; the opponent was the same fixed script.
+This is a case-specific workaround, not evidence of general adversarial success.
+New B1 instances default to the tested log sampler. The explicit Gaussian setting
+and previous recordings are preserved.
 
 ## Earlier fixed-speed implementation (retained)
 

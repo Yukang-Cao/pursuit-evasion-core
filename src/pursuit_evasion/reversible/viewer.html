@@ -1,0 +1,1135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Pursuit–evasion value explorer</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f7f9fa;
+        color: #20343f;
+        font: 16px/1.5 system-ui;
+      }
+      main {
+        max-width: 1480px;
+        margin: auto;
+        padding: 20px 28px;
+      }
+      h1 {
+        font-size: 27px;
+        margin: 0;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 8px 0;
+      }
+      p {
+        margin: 8px 0;
+      }
+      .small {
+        font-size: 13px;
+        color: #55707d;
+      }
+      .bar {
+        display: flex;
+        gap: 12px 22px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin: 14px 0;
+      }
+      select,
+      button,
+      input[type="number"] {
+        font: 15px system-ui;
+        color: inherit;
+        background: white;
+        border: 1px solid #9db0ba;
+        border-radius: 4px;
+        padding: 7px;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      button.active {
+        background: #e3f1f5;
+        border-color: #267b93;
+      }
+      select {
+        max-width: 100%;
+      }
+      .panels {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      .panel {
+        background: white;
+        padding: 16px;
+        border: 1px solid #d8e2e7;
+        min-width: 0;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        touch-action: none;
+      }
+      .badge {
+        padding: 8px 12px;
+        background: #edf4f6;
+        font-size: 15px;
+        min-height: 62px;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 15px;
+      }
+      .control {
+        display: grid;
+        grid-template-columns: 140px 1fr 65px;
+        gap: 8px;
+        align-items: center;
+      }
+      .control input {
+        width: 100%;
+        accent-color: #247d96;
+      }
+      .control output {
+        text-align: right;
+        font-size: 14px;
+      }
+      .status {
+        padding: 10px 14px;
+        border-left: 3px solid #247d96;
+        background: #eaf2f5;
+      }
+      .note {
+        background: #fff6e9;
+        border-left: 3px solid #bd7a31;
+        padding: 8px 12px;
+      }
+      .legend {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        font-size: 13px;
+      }
+      .line {
+        display: inline-block;
+        width: 22px;
+        border-top: 3px solid;
+        margin-right: 5px;
+      }
+      input[type="range"] {
+        accent-color: #247d96;
+      }
+      .time {
+        flex: 1;
+        min-width: 150px;
+      }
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+        font-size: 13px;
+      }
+      .action {
+        padding: 7px;
+        background: #f0f5f7;
+        border: 1px solid #dbe5e9;
+      }
+      .action.blocked {
+        background: #f8e8e6;
+      }
+      .action.chosen {
+        border: 2px solid #267b93;
+      }
+      .action.unknown {
+        background: #eceff1;
+      }
+      .extras {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-top: 20px;
+      }
+      details {
+        margin: 18px 0;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .colorbar {
+        height: 12px;
+        width: 240px;
+        background: linear-gradient(
+          to right,
+          #eff7f8,
+          #8ebbc8,
+          #377b91,
+          #163a54
+        );
+        display: inline-block;
+        vertical-align: middle;
+      }
+      .mode {
+        font-weight: 700;
+      }
+      .error {
+        color: #a32e29;
+      }
+      a {
+        color: #146c88;
+      }
+      #busy {
+        min-width: 90px;
+      }
+      .offline {
+        color: #795917;
+      }
+      #export {
+        margin-left: auto;
+      }
+      @media (max-width: 900px) {
+        .panels,
+        .extras,
+        .controls {
+          grid-template-columns: 1fr;
+        }
+        main {
+          padding: 15px;
+        }
+        .control {
+          grid-template-columns: 125px 1fr 60px;
+        }
+        .bar {
+          gap: 10px;
+        }
+        h1 {
+          font-size: 23px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Pursuit–evasion value explorer</h1>
+      <p>
+        Place both cars, then inspect the
+        <strong>5D free-space table</strong> as a 2D slice. The square wall
+        affects the action check; it is <strong>not included</strong> in this
+        value map.
+      </p>
+      <div class="bar">
+        <label
+          >Table
+          <select id="table"></select></label
+        ><label
+          >Time coverage
+          <select id="budget"></select></label
+        ><label
+          ><input type="checkbox" id="free" />Hide walls / free-space action
+          check</label
+        ><span id="busy" class="small">Loading…</span
+        ><button id="export">Save figure PNG</button>
+      </div>
+      <div class="bar">
+        <label
+          >Example / recording
+          <select id="example"></select></label
+        ><button id="reset">Reset example</button
+        ><button id="edit">Edit configuration</button
+        ><button id="play">Play recording</button
+        ><button id="step">+0.05 s</button>
+      </div>
+      <div class="bar">
+        <input
+          id="time"
+          class="time"
+          type="range"
+          min="0"
+          max="0"
+          step="1"
+          value="0"
+        /><span id="clock">Editable configuration</span>
+      </div>
+      <p id="context" class="note"></p>
+      <div class="panels">
+        <section class="panel">
+          <h2>World: drag P or E</h2>
+          <div id="policy" class="badge"></div>
+          <canvas
+            id="world"
+            width="750"
+            height="750"
+            aria-label="World coordinates with draggable pursuer and evader"
+          ></canvas>
+          <div class="legend">
+            <span style="color: #247d96">● P</span
+            ><span style="color: #bd7a31">● E</span
+            ><span style="color: #9b5b9b">◇ MPPI waypoint</span
+            ><span>Arrow = motion; short line = heading</span>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>E's position relative to P</h2>
+          <div id="fixed" class="badge"></div>
+          <canvas
+            id="map"
+            width="750"
+            height="750"
+            aria-label="DP time heatmap indexed by relative evader position"
+          ></canvas>
+          <div class="legend">
+            <span>0 s <i class="colorbar"></i> <span id="scale">8 s</span></span
+            ><span>Gray = unresolved by selected time</span>
+          </div>
+          <p class="small">
+            The colored area is numerical capture-time coverage. It is not the
+            wall-safe B1 takeover region. Click the map to place E at that
+            relative position.
+          </p>
+        </section>
+      </div>
+      <div class="controls">
+        <div class="control">
+          <label for="hp">P heading</label
+          ><input id="hp" type="range" min="-180" max="180" step="1" /><output
+            id="hp-out"
+          ></output>
+        </div>
+        <div class="control">
+          <label for="he">E heading</label
+          ><input id="he" type="range" min="-180" max="180" step="1" /><output
+            id="he-out"
+          ></output>
+        </div>
+        <div class="control">
+          <label for="vp">P speed (m/s)</label
+          ><input id="vp" type="range" min="-1" max="2" step="0.025" /><output
+            id="vp-out"
+          ></output>
+        </div>
+        <div class="control">
+          <label for="ve">E speed (m/s)</label
+          ><input
+            id="ve"
+            type="range"
+            min="-0.5"
+            max="1"
+            step="0.0125"
+          /><output id="ve-out"></output>
+        </div>
+      </div>
+      <p id="query" class="status"></p>
+      <div class="extras">
+        <div>
+          <h2>What would B1 choose here?</h2>
+          <p id="decision"></p>
+          <p id="point" class="small"></p>
+          <p class="small">
+            Changing table coverage during a recording changes this hypothetical
+            decision. It does not rewrite the recorded controller or path shown
+            on the left.
+          </p>
+        </div>
+        <div>
+          <h2>Candidate P commands</h2>
+          <div id="actions" class="actions"></div>
+          <p class="small">
+            Each time is the worst tested E response. Pink = fails the
+            wall/braking check. Gray = unresolved time. Outline = action
+            selected by the DP query; B1 may still fall back to MPPI.
+          </p>
+        </div>
+      </div>
+      <details>
+        <summary>How to read this view</summary>
+        <p>
+          The right axes are E forward/backward and left/right, measured in P's
+          body frame. The slice fixes relative heading, P speed and E speed.
+          Dragging either position changes the query marker. Rotating a vehicle
+          or changing a speed changes the slice. Translating both cars together
+          leaves this free-space value unchanged.
+        </p>
+        <p>
+          The heatmap is queried from stored signed fields and their first zero
+          crossing. No new DP solve runs here. Gray means unresolved within this
+          table's selected coverage, not proven escape. A negative speed
+          reverses motion without rotating the body heading.
+        </p>
+        <p>
+          In recordings, P's actual mode, temporary waypoint, and E's declared
+          strategy are shown above the world view. Editing detaches the
+          recording: the interface then shows a hypothetical B1 decision, not a
+          new simulated chase. The replay advances one recorded control step at
+          a time so the slice and state remain synchronized; this is a
+          diagnostic step-through, not real-time video.
+        </p>
+      </details>
+      <p class="small">
+        Point-car research model · physical capture radius
+        <span id="capture-radius">0.3</span> m · table values are numerical
+        estimates. Initial P/E speeds, steering and acceleration limits are
+        displayed in the controls and documentation.
+      </p>
+    </main>
+    <script>
+      "use strict";
+      const $ = (id) => document.getElementById(id);
+      let meta,
+        record = null,
+        recordId = null,
+        frame = 0,
+        state = [0, 0, 0, 2, 1, 0.3, 0, 1],
+        anchor = [0, 0],
+        result = null,
+        currentSlice = null,
+        playing = false,
+        editing = true,
+        version = 0,
+        pending = false,
+        debounce = null,
+        drag = null,
+        presetId = null;
+      const P = "#247d96",
+        E = "#bd7a31",
+        G = "#9b5b9b";
+      async function api(url, data) {
+        const r = await fetch(
+          url,
+          data
+            ? {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+              }
+            : undefined,
+        );
+        const d = await r.json();
+        if (!r.ok) throw Error(d.error || r.statusText);
+        return d;
+      }
+      function tableMeta() {
+        return meta.tables.find((t) => t.id === $("table").value);
+      }
+      function budgets(want) {
+        let m = tableMeta();
+        $("budget").replaceChildren();
+        for (let b of m.budgets) {
+          let o = new Option(b.toFixed(1) + " s", String(b));
+          $("budget").add(o);
+        }
+        let chosen = m.budgets.reduce((a, b) =>
+          Math.abs(b - (want || m.max_budget)) <
+          Math.abs(a - (want || m.max_budget))
+            ? b
+            : a,
+        );
+        $("budget").value = String(chosen);
+      }
+      function syncControls() {
+        for (let [id, i] of [
+          ["hp", 2],
+          ["he", 6],
+          ["vp", 3],
+          ["ve", 7],
+        ]) {
+          let v = state[i] * (id[0] === "h" ? 180 / Math.PI : 1);
+          $(id).value = v;
+          $(id + "-out").textContent =
+            v.toFixed(id[0] === "h" ? 1 : 3) + (id[0] === "h" ? "°" : "");
+        }
+      }
+      function stop() {
+        playing = false;
+        $("play").textContent = "Play recording";
+      }
+      function detach() {
+        stop();
+        editing = true;
+        recordId = null;
+        currentSlice = null;
+        $("time").disabled = true;
+        $("play").disabled = true;
+        $("step").disabled = true;
+        $("clock").textContent = "Editable configuration";
+        $("context").textContent =
+          "Editable state: this is a table query, not a new chase. B1 mode and waypoint are prospective. E has no running policy until a recording is selected.";
+      }
+      function relative() {
+        let dx = state[4] - state[0],
+          dy = state[5] - state[1],
+          h = state[2];
+        return [
+          Math.cos(h) * dx + Math.sin(h) * dy,
+          -Math.sin(h) * dx + Math.cos(h) * dy,
+        ];
+      }
+      async function refresh() {
+        const mine = ++version;
+        pending = true;
+        $("busy").textContent = "Querying slice…";
+        $("query").textContent = "Updating the table slice and action check…";
+        drawWorld();
+        try {
+          let d = await api("/api/query", {
+            table: $("table").value,
+            budget: Number($("budget").value),
+            state,
+            anchor,
+            free_world: $("free").checked,
+          });
+          if (mine !== version) return;
+          result = d;
+          currentSlice = d;
+          pending = false;
+          render();
+          $("busy").textContent =
+            (d.query_seconds * 1000).toFixed(0) + " ms query";
+        } catch (e) {
+          if (mine === version) {
+            $("busy").textContent = "Query error";
+            $("query").textContent = e.message;
+            $("query").classList.add("error");
+          }
+        } finally {
+          if (mine === version) pending = false;
+        }
+      }
+      function schedule() {
+        version++;
+        clearTimeout(debounce);
+        drawWorld();
+        debounce = setTimeout(refresh, 120);
+      }
+      function axes(canvas, b, titleX, titleY) {
+        const c = canvas.getContext("2d"),
+          W = canvas.width,
+          H = canvas.height,
+          pad = 70,
+          s = (W - 2 * pad) / (b[1] - b[0]);
+        const X = (x) => pad + (x - b[0]) * s,
+          Y = (y) => H - pad - (y - b[2]) * s;
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = "white";
+        c.fillRect(0, 0, W, H);
+        return { c, X, Y, s, b, pad, W, H, titleX, titleY };
+      }
+      function grid(a) {
+        const { c, X, Y, b, W, H, pad } = a;
+        c.lineWidth = 1;
+        c.strokeStyle = "#dce5e9";
+        c.fillStyle = "#58717e";
+        c.font = "17px system-ui";
+        let step = b[1] - b[0] > 10 ? 2 : 1;
+        for (let x = Math.ceil(b[0] / step) * step; x <= b[1]; x += step) {
+          c.beginPath();
+          c.moveTo(X(x), Y(b[2]));
+          c.lineTo(X(x), Y(b[3]));
+          c.stroke();
+          c.fillText(x.toFixed(0), X(x) - 5, H - pad + 25);
+        }
+        for (let y = Math.ceil(b[2] / step) * step; y <= b[3]; y += step) {
+          c.beginPath();
+          c.moveTo(X(b[0]), Y(y));
+          c.lineTo(X(b[1]), Y(y));
+          c.stroke();
+          c.fillText(y.toFixed(0), pad - 35, Y(y) + 5);
+        }
+        c.textAlign = "center";
+        c.fillText(a.titleX, W / 2, H - 18);
+        c.save();
+        c.translate(22, H / 2);
+        c.rotate(-Math.PI / 2);
+        c.fillText(a.titleY, 0, 0);
+        c.restore();
+        c.textAlign = "left";
+      }
+      function worldBounds() {
+        let half = meta.config.arena_half_width + 0.5;
+        for (let i of [0, 1, 4, 5])
+          half = Math.max(half, Math.abs(state[i]) + 0.5);
+        return [-half, half, -half, half];
+      }
+      function drawWorld() {
+        const a = axes($("world"), worldBounds(), "World x (m)", "World y (m)"),
+          { c, X, Y, s } = a;
+        grid(a);
+        if (!$("free").checked) {
+          c.strokeStyle = "#768f9b";
+          c.lineWidth = 2;
+          let half = meta.config.arena_half_width;
+          c.strokeRect(X(-half), Y(half), 2 * half * s, 2 * half * s);
+        }
+        if (record && !editing) {
+          for (let [o, color] of [
+            [0, P],
+            [4, E],
+          ]) {
+            c.beginPath();
+            for (let i = 0; i <= frame; i++) {
+              let z = record.trace[i].state;
+              i
+                ? c.lineTo(X(z[o]), Y(z[o + 1]))
+                : c.moveTo(X(z[o]), Y(z[o + 1]));
+            }
+            c.strokeStyle = color;
+            c.lineWidth = 2;
+            c.stroke();
+          }
+        }
+        let row = record && !editing ? record.trace[frame] : null,
+          waypoint = row ? row.waypoint : pending ? null : result?.waypoint;
+        if (waypoint) {
+          c.strokeStyle = G;
+          c.lineWidth = 2;
+          c.setLineDash([5, 5]);
+          c.beginPath();
+          c.moveTo(X(state[0]), Y(state[1]));
+          c.lineTo(X(waypoint[0]), Y(waypoint[1]));
+          c.stroke();
+          c.setLineDash([]);
+          c.save();
+          c.translate(X(waypoint[0]), Y(waypoint[1]));
+          c.rotate(Math.PI / 4);
+          c.strokeRect(-7, -7, 14, 14);
+          c.restore();
+          c.fillStyle = G;
+          c.font = "18px system-ui";
+          c.textAlign = X(waypoint[0]) > 500 ? "right" : "left";
+          c.fillText(
+            "MPPI waypoint",
+            X(waypoint[0]) + (X(waypoint[0]) > 500 ? -13 : 13),
+            Y(waypoint[1]) - 10,
+          );
+          c.textAlign = "left";
+        }
+        c.strokeStyle = "#93b4c2";
+        c.lineWidth = 1.5;
+        c.beginPath();
+        c.arc(
+          X(state[0]),
+          Y(state[1]),
+          meta.config.capture_radius * s,
+          0,
+          2 * Math.PI,
+        );
+        c.stroke();
+        for (let [o, color, name] of [
+          [0, P, "P"],
+          [4, E, "E"],
+        ]) {
+          let x = X(state[o]),
+            y = Y(state[o + 1]),
+            h = state[o + 2],
+            v = state[o + 3];
+          c.strokeStyle = color;
+          c.fillStyle = color;
+          c.lineWidth = 2;
+          c.beginPath();
+          c.arc(x, y, 7, 0, 2 * Math.PI);
+          c.fill();
+          c.beginPath();
+          c.moveTo(x, y);
+          c.lineTo(x + 20 * Math.cos(h), y - 20 * Math.sin(h));
+          c.stroke();
+          if (Math.abs(v) > 0.005) {
+            let dir = h + (v < 0 ? Math.PI : 0),
+              len = 28 + 12 * Math.abs(v),
+              ex = x + len * Math.cos(dir),
+              ey = y - len * Math.sin(dir);
+            c.beginPath();
+            c.moveTo(x, y);
+            c.lineTo(ex, ey);
+            c.stroke();
+            c.beginPath();
+            c.moveTo(ex, ey);
+            c.lineTo(
+              ex - 9 * Math.cos(dir - 0.45),
+              ey + 9 * Math.sin(dir - 0.45),
+            );
+            c.lineTo(
+              ex - 9 * Math.cos(dir + 0.45),
+              ey + 9 * Math.sin(dir + 0.45),
+            );
+            c.closePath();
+            c.fill();
+          }
+          c.font = "21px system-ui";
+          c.fillText(name, x - 22, y - 13);
+        }
+        let owner = row?.owner || "ended";
+        if (editing) {
+          $("policy").innerHTML =
+            '<span class="mode">Editable configuration</span><br>Prospective B1 mode: ' +
+            (pending ? "updating…" : result?.predicted_B1_mode || "querying…");
+        } else {
+          let label =
+            owner === "lion_mppi"
+              ? "LION + " + (row.sampler === "log_mppi" ? "LOG-MPPI" : "MPPI")
+              : owner.startsWith("dp")
+                ? "DP CONTROL"
+                : owner.includes("free_dp")
+                  ? "DP CONTROL"
+                  : owner === "ended"
+                    ? "RECORDING ENDED"
+                    : owner;
+          $("policy").innerHTML =
+            '<span class="mode">P now: ' +
+            label +
+            "</span><br>E: " +
+            record.e_strategy;
+        }
+      }
+      function color(v, max) {
+        if (v == null) return [208, 216, 221];
+        const stops = [
+            [239, 247, 248],
+            [142, 187, 200],
+            [55, 123, 145],
+            [22, 58, 84],
+          ],
+          z = Math.max(0, Math.min(1, v / max)) * 3,
+          i = Math.min(2, Math.floor(z)),
+          f = z - i;
+        return stops[i].map((a, k) =>
+          Math.round(a + (stops[i + 1][k] - a) * f),
+        );
+      }
+      function drawMap() {
+        if (!currentSlice) return;
+        const d = currentSlice,
+          n = d.x.length,
+          m = d.y.length,
+          a = axes(
+            $("map"),
+            [d.x[0], d.x[n - 1], d.y[0], d.y[m - 1]],
+            "E ahead of P (m)",
+            "E left of P (m)",
+          ),
+          { c, X, Y, s, pad, W } = a;
+        const tmp = document.createElement("canvas");
+        tmp.width = n;
+        tmp.height = m;
+        const tx = tmp.getContext("2d"),
+          im = tx.createImageData(n, m);
+        for (let j = 0; j < m; j++)
+          for (let i = 0; i < n; i++) {
+            let co = color(d.values[j][i], d.coverage),
+              z = ((m - 1 - j) * n + i) * 4;
+            im.data.set([...co, 255], z);
+          }
+        tx.putImageData(im, 0, 0);
+        c.imageSmoothingEnabled = false;
+        c.save();
+        c.beginPath();
+        c.rect(pad, pad, W - 2 * pad, W - 2 * pad);
+        c.clip();
+        let dx = d.x[1] - d.x[0],
+          dy = d.y[1] - d.y[0];
+        c.drawImage(
+          tmp,
+          X(d.x[0] - dx / 2),
+          Y(d.y[m - 1] + dy / 2),
+          (d.x[n - 1] - d.x[0] + dx) * s,
+          (d.y[m - 1] - d.y[0] + dy) * s,
+        );
+        c.restore();
+        grid(a);
+        // Boundary between numerically resolved and unresolved cells, without inventing values in gray cells.
+        c.strokeStyle = "#4a6573";
+        c.lineWidth = 1;
+        for (let j = 0; j < m - 1; j++)
+          for (let i = 0; i < n - 1; i++) {
+            let inside = d.values[j][i] != null;
+            if ((d.values[j][i + 1] != null) !== inside) {
+              c.beginPath();
+              let xx = (d.x[i] + d.x[i + 1]) / 2;
+              c.moveTo(X(xx), Y(d.y[j]));
+              c.lineTo(X(xx), Y(d.y[j + 1]));
+              c.stroke();
+            }
+            if ((d.values[j + 1][i] != null) !== inside) {
+              c.beginPath();
+              let yy = (d.y[j] + d.y[j + 1]) / 2;
+              c.moveTo(X(d.x[i]), Y(yy));
+              c.lineTo(X(d.x[i + 1]), Y(yy));
+              c.stroke();
+            }
+          }
+        c.fillStyle = "white";
+        c.beginPath();
+        c.arc(X(0), Y(0), meta.config.capture_radius * s, 0, 2 * Math.PI);
+        c.fill();
+        c.strokeStyle = P;
+        c.stroke();
+        c.fillStyle = P;
+        c.beginPath();
+        c.arc(X(0), Y(0), 6, 0, 2 * Math.PI);
+        c.fill();
+        c.font = "18px system-ui";
+        c.fillText("P", X(0) - 21, Y(0) - 11);
+        c.strokeStyle = P;
+        c.beginPath();
+        c.moveTo(X(0), Y(0));
+        c.lineTo(X(0.36), Y(0));
+        c.stroke();
+        let r = relative();
+        if (
+          r[0] >= d.x[0] &&
+          r[0] <= d.x[n - 1] &&
+          r[1] >= d.y[0] &&
+          r[1] <= d.y[m - 1]
+        ) {
+          c.strokeStyle = "white";
+          c.lineWidth = 5;
+          c.beginPath();
+          c.arc(X(r[0]), Y(r[1]), 8, 0, 2 * Math.PI);
+          c.stroke();
+          c.fillStyle = E;
+          c.fill();
+          c.fillText("E", X(r[0]) + 12, Y(r[1]) - 9);
+        } else {
+          c.fillStyle = "#9a592c";
+          c.fillText("E is outside this relative grid", pad + 15, pad + 30);
+        }
+        $("scale").textContent = d.coverage.toFixed(1) + " s";
+        $("fixed").innerHTML =
+          "<b>Fixed slice:</b> E heading − P heading = " +
+          d.slice_fixed.relative_heading_degrees.toFixed(1) +
+          "°<br>P speed " +
+          d.slice_fixed.p_speed.toFixed(3) +
+          " m/s · E speed " +
+          d.slice_fixed.e_speed.toFixed(3) +
+          " m/s";
+      }
+      function render() {
+        syncControls();
+        drawWorld();
+        drawMap();
+        if (!result) return;
+        let d = result,
+          v = d.state_value;
+        $("query").classList.remove("error");
+        $("query").textContent =
+          "Current numerical DP time: " +
+          (v == null
+            ? "unresolved within " + d.coverage.toFixed(1) + " s"
+            : v.toFixed(3) + " s") +
+          " · Relative E = (" +
+          d.relative[0].toFixed(3) +
+          ", " +
+          d.relative[1].toFixed(3) +
+          ") m";
+        $("decision").innerHTML =
+          "<strong>" +
+          d.predicted_B1_mode +
+          "</strong>" +
+          (d.dp
+            ? ". " +
+              d.dp.safe_commands +
+              " of 9 P commands pass the wall check. " +
+              (d.dp.resolved
+                ? "At least one feasible action has a finite worst-response time."
+                : "No feasible action has a finite worst-response time; signed-field guidance may still exist.")
+            : "");
+        $("point").textContent =
+          "This table has no walls. Colored coverage alone does not authorize a DP takeover. " +
+          (d.dp_control
+            ? "DP query selects acceleration " +
+              d.dp_control[0].toFixed(2) +
+              " m/s², curvature " +
+              d.dp_control[1].toFixed(2) +
+              " m⁻¹."
+            : "");
+        $("actions").replaceChildren();
+        for (let a of d.actions) {
+          let el = document.createElement("div");
+          el.className =
+            "action" +
+            (!a.wall_feasible
+              ? " blocked"
+              : a.worst_time == null
+                ? " unknown"
+                : "") +
+            (a.selected ? " chosen" : "");
+          el.textContent =
+            "a " +
+            a.acceleration.toFixed(1) +
+            " · κ " +
+            a.curvature.toFixed(1) +
+            " → " +
+            (!a.wall_feasible
+              ? "wall rejected"
+              : a.worst_time == null
+                ? "unresolved"
+                : a.worst_time.toFixed(2) + " s");
+          $("actions").appendChild(el);
+        }
+      }
+      async function loadExample(id) {
+        stop();
+        presetId = id;
+        record = null;
+        result = null;
+        currentSlice = null;
+        if (id.startsWith("r:")) {
+          recordId = id.slice(2);
+          let e = meta.replays.find((x) => x.id === recordId);
+          record = await api("/api/replay/" + recordId);
+          frame = 0;
+          editing = false;
+          state = record.trace[0].state.slice();
+          anchor = record.initial.slice(0, 2);
+          $("table").value = e.table;
+          budgets(e.coverage || tableMeta().max_budget);
+          $("free").checked = record.world.half_width == null;
+          $("time").max = record.trace.length - 1;
+          $("time").value = 0;
+          $("time").disabled = false;
+          $("play").disabled = false;
+          $("step").disabled = false;
+          $("context").textContent =
+            e.p_strategy +
+            " | E: " +
+            e.e_strategy +
+            " | Recorded outcome: " +
+            e.outcome +
+            " at " +
+            e.end_time.toFixed(3) +
+            " s. Editing detaches this recording.";
+          updateClock();
+        } else {
+          let e = meta.presets.find((x) => x.id === id);
+          state = e.state.slice();
+          anchor = (e.anchor || state.slice(0, 2)).slice();
+          if (e.table) $("table").value = e.table;
+          budgets(e.coverage || tableMeta().max_budget);
+          $("free").checked = e.free_world || false;
+          detach();
+          $("context").textContent = e.description;
+        }
+        syncControls();
+        await refresh();
+      }
+      function updateClock() {
+        $("clock").textContent =
+          "Recorded " +
+          record.trace[frame].t.toFixed(3) +
+          " / " +
+          record.end_time.toFixed(3) +
+          " s" +
+          (frame === record.trace.length - 1 ? " · terminal frame frozen" : "");
+      }
+      async function moveFrame(i) {
+        frame = Math.max(0, Math.min(record.trace.length - 1, i));
+        state = record.trace[frame].state.slice();
+        $("time").value = frame;
+        updateClock();
+        syncControls();
+        await refresh();
+      }
+      async function playTick() {
+        if (!playing || editing) return;
+        if (frame >= record.trace.length - 1) {
+          stop();
+          return;
+        }
+        await moveFrame(frame + 1);
+        if (playing) setTimeout(playTick, 100);
+      }
+      $("play").onclick = () => {
+        if (playing) {
+          stop();
+          return;
+        }
+        if (frame === record.trace.length - 1) frame = -1;
+        playing = true;
+        $("play").textContent = "Pause";
+        playTick();
+      };
+      $("step").onclick = () => {
+        stop();
+        moveFrame(frame + 1);
+      };
+      $("time").oninput = () => {
+        stop();
+        moveFrame(Number($("time").value));
+      };
+      $("edit").onclick = () => {
+        detach();
+        refresh();
+      };
+      $("reset").onclick = () => loadExample(presetId);
+      $("example").onchange = () => loadExample($("example").value);
+      $("table").onchange = () => {
+        budgets(Number($("budget").value));
+        refresh();
+      };
+      $("budget").onchange = refresh;
+      $("free").onchange = refresh;
+      for (let [id, i] of [
+        ["hp", 2],
+        ["he", 6],
+        ["vp", 3],
+        ["ve", 7],
+      ])
+        $(id).oninput = () => {
+          detach();
+          state[i] = Number($(id).value) * (id[0] === "h" ? Math.PI / 180 : 1);
+          syncControls();
+          schedule();
+        };
+      function worldPoint(e) {
+        let rect = $("world").getBoundingClientRect(),
+          b = worldBounds(),
+          x = ((e.clientX - rect.left) * 750) / rect.width,
+          y = ((e.clientY - rect.top) * 750) / rect.height;
+        return [
+          b[0] + ((x - 70) / 610) * (b[1] - b[0]),
+          b[3] - ((y - 70) / 610) * (b[3] - b[2]),
+        ];
+      }
+      $("world").onpointerdown = (e) => {
+        let p = worldPoint(e),
+          ds = [
+            Math.hypot(p[0] - state[0], p[1] - state[1]),
+            Math.hypot(p[0] - state[4], p[1] - state[5]),
+          ],
+          i = ds[0] < ds[1] ? 0 : 4;
+        if (Math.min(...ds) > 0.6) return;
+        detach();
+        drag = i;
+        $("world").setPointerCapture(e.pointerId);
+      };
+      $("world").onpointermove = (e) => {
+        if (drag == null) return;
+        let p = worldPoint(e);
+        state[drag] = Math.max(
+          -meta.config.arena_half_width - 0.45,
+          Math.min(meta.config.arena_half_width + 0.45, p[0]),
+        );
+        state[drag + 1] = Math.max(
+          -meta.config.arena_half_width - 0.45,
+          Math.min(meta.config.arena_half_width + 0.45, p[1]),
+        );
+        if (drag === 0) anchor = state.slice(0, 2);
+        schedule();
+      };
+      $("world").onpointerup = () => {
+        if (drag != null) {
+          drag = null;
+          clearTimeout(debounce);
+          refresh();
+        }
+      };
+      $("map").onpointerdown = (e) => {
+        if (!currentSlice) return;
+        let r = $("map").getBoundingClientRect(),
+          d = currentSlice,
+          x = ((e.clientX - r.left) * 750) / r.width,
+          y = ((e.clientY - r.top) * 750) / r.height;
+        if (x < 70 || x > 680 || y < 70 || y > 680) return;
+        let rx = d.x[0] + ((x - 70) / 610) * (d.x.at(-1) - d.x[0]),
+          ry = d.y.at(-1) - ((y - 70) / 610) * (d.y.at(-1) - d.y[0]),
+          h = state[2];
+        detach();
+        state[4] = state[0] + Math.cos(h) * rx - Math.sin(h) * ry;
+        state[5] = state[1] + Math.sin(h) * rx + Math.cos(h) * ry;
+        refresh();
+      };
+      $("export").onclick = () => {
+        let cv = document.createElement("canvas");
+        cv.width = 1540;
+        cv.height = 1010;
+        let c = cv.getContext("2d");
+        c.fillStyle = "white";
+        c.fillRect(0, 0, 1540, 1010);
+        c.fillStyle = "#20343f";
+        c.font = "25px system-ui";
+        c.fillText("Pursuit–evasion · " + $("clock").textContent, 25, 35);
+        c.font = "18px system-ui";
+        c.fillText(
+          "Relative heading " +
+            result.slice_fixed.relative_heading_degrees.toFixed(1) +
+            "° · P speed " +
+            state[3].toFixed(3) +
+            " m/s · E speed " +
+            state[7].toFixed(3) +
+            " m/s",
+          25,
+          70,
+        );
+        c.fillText(
+          $("policy").innerText.replace(/\n/g, " · ").slice(0, 155),
+          25,
+          101,
+        );
+        c.drawImage($("world"), 10, 125);
+        c.drawImage($("map"), 780, 125);
+        for (let j = 0; j < 300; j++) {
+          let co = color((j / 299) * result.coverage, result.coverage);
+          c.fillStyle = "rgb(" + co.join(",") + ")";
+          c.fillRect(1030 + j, 890, 1, 14);
+        }
+        c.fillStyle = "#20343f";
+        c.fillText("0 s", 1000, 925);
+        c.fillText(result.coverage.toFixed(1) + " s", 1332, 925);
+        c.fillText("DP remaining time", 1080, 925);
+        c.fillText($("query").textContent, 25, 965);
+        c.fillText(
+          "Free-space DP slice; gray = unresolved. World wall check is separate.",
+          25,
+          994,
+        );
+        let a = document.createElement("a");
+        a.download = "pursuit-evasion-value-slice.png";
+        a.href = cv.toDataURL("image/png");
+        a.click();
+      };
+      (async () => {
+        try {
+          meta = await api("/api/meta");
+          $("capture-radius").textContent = meta.config.capture_radius;
+          for (const [id, limits] of [
+            ["vp", meta.config.pursuer],
+            ["ve", meta.config.evader],
+          ]) {
+            $(id).min = limits.speed_min;
+            $(id).max = limits.speed_max;
+            $(id).step = (limits.speed_max - limits.speed_min) / 120;
+          }
+          for (let t of meta.tables) $("table").add(new Option(t.label, t.id));
+          budgets(4);
+          for (let p of meta.presets)
+            $("example").add(new Option(p.label, p.id));
+          for (let r of meta.replays)
+            $("example").add(new Option("Replay · " + r.label, "r:" + r.id));
+          await loadExample(meta.presets[0].id);
+        } catch (e) {
+          $("busy").textContent = "Error";
+          $("query").textContent = e.message;
+        }
+      })();
+      window.VIEWER_QA = {
+        getState: () => state.slice(),
+        getResult: () => result,
+        loadExample,
+        moveFrame,
+        refresh,
+      };
+    </script>
+  </body>
+</html>

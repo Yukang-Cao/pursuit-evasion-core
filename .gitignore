@@ -22,3 +22,6 @@ checkpoints/
 *.log
 .DS_Store
 
+
+# Packaged viewer UI is source code, not a generated research report.
+!src/pursuit_evasion/reversible/viewer.html

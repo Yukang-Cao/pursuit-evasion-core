@@ -13,6 +13,8 @@ Start with [its physical model](docs/reversible-model.md), then the
 [fixed-map DP](docs/reversible-world-dp.md), and [UCT prototype](docs/reversible-uct.md).
 A small [analytic capture check](docs/reversible-analytic-check.md) documents a
 known numerical limitation and its reproducible test.
+The [interactive value viewer](docs/value-viewer.md) links world configurations,
+relative table slices, and recorded controller/waypoint transitions.
 The fixed-speed model below is retained for earlier reproducible experiments.
 
 A tiny reversible CPU solve (requires `g++` with OpenMP):
