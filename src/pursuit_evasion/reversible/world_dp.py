@@ -378,6 +378,22 @@ def solve(
     (output / "native_source.cpp").write_bytes(
         Path(__file__).with_name("native_world.cpp").read_bytes()
     )
+    if parent is not None:
+        required = ["meta.json", "fields.f32"]
+        if parent.get("final_source", "final.f32") != "history_last":
+            required.append("final.f32")
+        (output / "dependencies.json").write_text(
+            json.dumps(
+                {
+                    "parent_table": meta["parent_table"],
+                    "required_parent_files_for_queries": required,
+                    "recursive_parent_dependencies": bool(parent.get("parent_table")),
+                    "instruction": "Retain the parent history while this continuation is in use.",
+                },
+                indent=2,
+            )
+            + "\n"
+        )
     meta["source_snapshot"] = "native_source.cpp"
     path = output / "meta.json"
     path.write_text(json.dumps(meta, indent=2) + "\n")

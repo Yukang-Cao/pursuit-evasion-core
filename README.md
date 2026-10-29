@@ -13,6 +13,20 @@ Start with [its physical model](docs/reversible-model.md), then the
 [fixed-map DP](docs/reversible-world-dp.md), and [UCT prototype](docs/reversible-uct.md).
 The fixed-speed model below is retained for earlier reproducible experiments.
 
+A tiny reversible CPU solve (requires `g++` with OpenMP):
+
+```python
+from pursuit_evasion.reversible.model import ReversibleConfig
+from pursuit_evasion.reversible.free_dp import RelativeGrid, solve
+
+solve(ReversibleConfig(), RelativeGrid(17, 12, 7, 7, 4.0),
+      "/tmp/pe-reversible-smoke", horizon=0.2)
+```
+
+Use a fresh output path. This tiny grid checks the implementation; it is not a
+control-quality reference. The linked solver documents explain larger runs,
+model compatibility, and retained-history dependencies.
+
 1. Read [the physical game and boundary rules](docs/model.md).
 2. Follow [the code map](docs/architecture.md).
 3. Check [what is implemented](docs/status.md) before using an example.

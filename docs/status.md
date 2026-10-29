@@ -21,11 +21,13 @@ A first adversarial UCT implementation uses DP/signed-field leaf estimates. It i
 **not yet the planned B2 using B1 rollout continuations**. Cloning and PPO are not
 implemented for the revised model. No robot or Jetson result is claimed.
 
-Current integrated check: 130 tests passed; two optional Torch reference checks
+Current integrated check: 133 tests passed; two optional Torch reference checks
 were skipped in the minimal test environment and passed separately in the Torch
 CPU environment. Some numerical-table feedback cases still fail their predicted
-capture deadline. Grid/refinement and obstacle-transfer investigations remain in
-progress; successful computation is not a capture certificate.
+capture deadline. Refinement and obstacle-transfer diagnostics document both successful captures
+and unresolved failures; successful computation is not a capture certificate.
+The fixed-map solver completed a four-second budget using a retained two-second
+prefix and an extension, with matching resumed/monolithic numerical tests.
 
 See [the reversible model](reversible-model.md) and the per-module documents linked
 from the README. Generated fields, replays and reports remain outside this repo.

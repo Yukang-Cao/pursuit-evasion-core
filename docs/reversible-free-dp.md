@@ -61,6 +61,11 @@ time = table.value([0.55, 0.0, 0.0, 2.0, 1.0])
 signed_value = table.field([0.55, 0.0, 0.0, 2.0, 1.0], budget=0.5)
 ```
 
+For a controlled horizon comparison, `RelativeTable(path, config, max_budget=2.0)`
+uses only the retained budgets through 2 s, without copying or changing the source
+history. The limit must be a saved positive budget. `table.horizon` and
+`table.times` describe that query view; `table.meta` retains the source-run record.
+
 `value` interpolates the signed field spatially at successive budgets, then finds
 its first zero crossing. It does **not** interpolate the diagnostic node-arrival
 array. Unresolved and outside-grid queries return NaN. Model checks compare the

@@ -359,6 +359,7 @@ def solve(
             history_and_final_write_seconds=write_seconds,
             probe_seconds=probe_seconds,
             elapsed_seconds=time.perf_counter() - start_all,
+            total_wall_seconds=time.perf_counter() - solve_started,
             gpu_pool_used_bytes=cp.get_default_memory_pool().used_bytes(),
             gpu_pool_reserved_bytes=cp.get_default_memory_pool().total_bytes(),
         )
