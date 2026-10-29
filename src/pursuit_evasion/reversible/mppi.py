@@ -23,6 +23,8 @@ class MPPISettings:
     iterations: int = 1
     temperature: float = 0.5
     noise_std: tuple[float, float] | None = None
+    sampler: str = "gaussian"
+    log_noise_sigma: float = 1.0
     goal_tolerance: float = 0.15
     distance_weight: float = 1.0
     terminal_weight: float = 5.0
@@ -88,7 +90,27 @@ class ReversibleMPPI:
             raise ValueError(
                 "Noise standard deviation must contain two nonnegative values."
             )
+        if settings.sampler not in ("gaussian", "log_mppi"):
+            raise ValueError("sampler must be gaussian or log_mppi")
+        if (
+            not np.isfinite(settings.log_noise_sigma)
+            or not 0 <= settings.log_noise_sigma <= 3
+        ):
+            raise ValueError("log_noise_sigma must be between zero and three")
         self.reset()
+
+    def sample_noise(self, shape):
+        """Signed normal × log-normal perturbations for the log-MPPI option.
+
+        The log multiplier has log-mean zero and explicit log-space std. Thus
+        noise_std is the normal-factor scale, not the final NLN standard
+        deviation. The latter is noise_std * exp(log_noise_sigma**2), before
+        control clipping. The objective and raw-noise update are unchanged.
+        """
+        noise = self.rng.normal(size=shape) * self.sigma
+        if self.settings.sampler == "log_mppi":
+            noise *= self.rng.lognormal(0.0, self.settings.log_noise_sigma, size=shape)
+        return noise
 
     def reset(self):
         self.rng = np.random.default_rng(self.seed)
@@ -211,10 +233,7 @@ class ReversibleMPPI:
         self.nominal = np.roll(self.nominal, -1, axis=0)
         fallback = "none"
         for _ in range(self.settings.iterations):
-            noise = (
-                self.rng.normal(size=(self.steps, self.settings.samples, 2))
-                * self.sigma
-            )
+            noise = self.sample_noise((self.steps, self.settings.samples, 2))
             candidates = np.clip(
                 self.nominal[:, None, :] + noise, self.lower, self.upper
             )
@@ -269,6 +288,13 @@ class ReversibleMPPI:
         command = self.nominal[0].copy()
         self.last = {
             "controller": "cfree_uniform_mppi_numpy_adaptation",
+            "sampler": self.settings.sampler,
+            "normal_noise_scale": self.sigma.tolist(),
+            "log_noise_sigma": (
+                self.settings.log_noise_sigma
+                if self.settings.sampler == "log_mppi"
+                else None
+            ),
             "command_order": ["acceleration", "curvature"],
             "target": target.tolist(),
             "samples": self.settings.samples,

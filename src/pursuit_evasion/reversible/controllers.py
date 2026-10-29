@@ -145,6 +145,8 @@ class Baseline1:
     Modes: 'hybrid', 'approach' (DP disabled), 'dp' (use any available field
     guidance; outside-domain states use the same approach fallback).
     There is no strict countdown or claim of a certified handoff.
+    New B1 instances use the tested broad log-MPPI approach sampler. Pass
+    MPPISettings() explicitly to reproduce the previous Gaussian approach.
     """
 
     def __init__(
@@ -180,7 +182,18 @@ class Baseline1:
                     )
         self.tracker = ReversibleMPPI(
             config,
-            mppi_settings or MPPISettings(),
+            (
+                mppi_settings
+                if mppi_settings is not None
+                else MPPISettings(
+                    sampler="log_mppi",
+                    noise_std=(
+                        config.pursuer.acceleration,
+                        config.pursuer.max_curvature,
+                    ),
+                    log_noise_sigma=1.0,
+                )
+            ),
             seed,
             clearance=self.world.clearance,
         )

@@ -98,3 +98,35 @@ fallback status; detailed sampled and selected rollouts are optional.
 The tracker is stateful: it retains a nominal sequence and RNG. Hypothetical
 search simulations must clone or reset that state deliberately; they must not
 silently consume the actual controller's future random samples.
+
+## Optional high-variance log-MPPI sampler
+
+`MPPISettings(sampler="log_mppi", noise_std=(2.0, 1.0), log_noise_sigma=1.0)`
+selects the tested high-variance option for P. New `Baseline1` instances use this
+setting by default. The low-level `MPPISettings()` default remains Gaussian; pass
+`mppi_settings=MPPISettings()` to B1 to reproduce the older Gaussian approach.
+Old recordings and their declared configurations are unchanged.
+
+Perturbations are a signed normal variable multiplied by a log-normal variable,
+as in the log-MPPI sampling family and the existing C-Free-Uniform variant.
+The log multiplier here has log-mean zero and log-space standard deviation one.
+The normal-factor scales are 2 m/s² and 1/m. The resulting pre-clipping standard
+deviations are approximately 5.44 m/s² and 2.72/m: about 5.4 times the original
+Gaussian standard deviations. Physical controls are still clipped to their
+unchanged bounds. This changes sampling, not admissible vehicle dynamics.
+
+These explicit parameters avoid carrying over the old implementation's conversion
+of normal moments into parameters subsequently interpreted as log-space moments.
+It is the same normal-times-lognormal construction, not a bit-identical port of
+that parameter convention. The navigation objective, horizon, sample count,
+softmax/raw-noise update, feasibility checks and early waypoint exit are unchanged.
+No claim of a general escape guarantee or exact path-integral importance correction
+is made for the bounded heavy-tailed variant.
+
+Primary source: Mohamed et al., *Autonomous Navigation of AGVs in Unknown
+Cluttered Environments: log-MPPI Control Strategy*,
+https://arxiv.org/abs/2203.16599 ; author implementation:
+https://github.com/IhabMohamed/log-MPPI_ros .
+
+The diagnostics retain the sampler name. Generated comparisons stay outside Git;
+controller timing must still be measured before any onboard claim.
