@@ -5,6 +5,7 @@ import numpy as np
 
 from ..game import _first_zero
 from .model import joint_step
+from .events_geometry import first_wall_time, first_capture_time
 
 
 @dataclass(frozen=True)
@@ -98,14 +99,13 @@ def advance(state, p_control, e_control, config, duration=None, world=None):
         return joint_step(s, p_control, e_control, t, config)
 
     endpoint = pose(dt)  # validates all inputs before event handling
-    found = []
+    roots = [
+        first_wall_time(s[:4], p_control, dt, config.pursuer, world),
+        first_capture_time(s, p_control, e_control, dt, config),
+        first_wall_time(s[4:], e_control, dt, config.evader, world),
+    ]
     names = ("pursuer_boundary_fault", "capture", "evader_boundary_fault")
-    for priority, (measure, bound) in enumerate(_measures(config, world)):
-        root = _first_zero(
-            lambda t: float(measure(pose(t))), bound, dt, time_tolerance=1e-10
-        )
-        if root is not None:
-            found.append((root, priority, names[priority]))
+    found = [(root, i, names[i]) for i, root in enumerate(roots) if root is not None]
     if not found:
         return Transition(endpoint, dt, None)
     first = min(x[0] for x in found)
@@ -142,40 +142,68 @@ def predict_pairs(state, p_controls, e_controls, config, duration=None, world=No
 
     endpoint = poses(dt)
     initial = np.broadcast_to(s, endpoint.shape)
-    roots = []
-    for measure, bound in _measures(config, world):
-        root = np.full(shape, np.inf)
-        va = measure(initial)
-        root[va <= 0] = 0
-        left = 0.0
-        for right in np.linspace(0, dt, 5)[1:]:
-            vb = measure(poses(right))
-            active = ~np.isfinite(root)
-            crossing = active & (vb <= 0)
-            if crossing.any():
-                lo = np.full(shape, left)
-                hi = np.full(shape, right)
-                for _ in range(22):
-                    mid = (lo + hi) / 2
-                    vm = measure(poses(mid))
-                    hi = np.where(crossing & (vm <= 0), mid, hi)
-                    lo = np.where(crossing & (vm > 0), mid, lo)
-                root[crossing] = (lo[crossing] + hi[crossing]) / 2
-            ambiguous = active & ~crossing & (va + vb <= bound * (right - left))
-            for i, j in np.argwhere(ambiguous):
-                found = _first_zero(
-                    lambda t: float(
-                        measure(joint_step(s, P[i], E[j], left + t, config))
-                    ),
-                    bound,
-                    float(right - left),
-                    time_tolerance=1e-10,
-                )
-                if found is not None:
-                    root[i, j] = left + found
-            left = float(right)
-            va = vb
-        roots.append(root)
+    p_roots = np.array(
+        [first_wall_time(s[:4], u, dt, config.pursuer, world) for u in P], object
+    )
+    e_roots = np.array(
+        [first_wall_time(s[4:], u, dt, config.evader, world) for u in E], object
+    )
+    p_roots = np.array([np.inf if x is None else x for x in p_roots], float)
+    e_roots = np.array([np.inf if x is None else x for x in e_roots], float)
+    wall_p = np.broadcast_to(p_roots[:, None], shape)
+    wall_e = np.broadcast_to(e_roots[None, :], shape)
+    measure = (
+        lambda z: np.linalg.norm(z[..., :2] - z[..., 4:6], axis=-1)
+        - config.capture_radius
+    )
+    root = np.full(shape, np.inf)
+    va = measure(initial)
+    root[va <= 0] = 0
+    left = 0.0
+    vp = np.maximum(abs(s[3]), abs(endpoint[..., 3]))
+    ve = np.maximum(abs(s[7]), abs(endpoint[..., 7]))
+    accel = (
+        abs(P[:, None, 0])
+        + vp**2 * abs(P[:, None, 1])
+        + abs(E[None, :, 0])
+        + ve**2 * abs(E[None, :, 1])
+    )
+    for right in np.linspace(0, dt, 5)[1:]:
+        vb = measure(poses(right))
+        active = ~np.isfinite(root)
+        crossing = active & (vb <= 0)
+        if crossing.any():
+            lo = np.full(shape, left)
+            hi = np.full(shape, right)
+            for _ in range(22):
+                mid = (lo + hi) / 2
+                vm = measure(poses(mid))
+                hi = np.where(crossing & (vm <= 0), mid, hi)
+                lo = np.where(crossing & (vm > 0), mid, lo)
+            root[crossing] = (lo[crossing] + hi[crossing]) / 2
+        middle = poses((left + right) / 2)
+        velocity_p = middle[..., 3, None] * np.stack(
+            [np.cos(middle[..., 2]), np.sin(middle[..., 2])], axis=-1
+        )
+        velocity_e = middle[..., 7, None] * np.stack(
+            [np.cos(middle[..., 6]), np.sin(middle[..., 6])], axis=-1
+        )
+        bound = np.minimum(
+            config.pursuer.max_abs_speed + config.evader.max_abs_speed,
+            np.linalg.norm(velocity_e - velocity_p, axis=-1)
+            + accel * (right - left) / 2,
+        )
+        ambiguous = active & ~crossing & (va + vb <= bound * (right - left))
+        for i, j in np.argwhere(ambiguous):
+            beginning = joint_step(s, P[i], E[j], left, config)
+            found = first_capture_time(
+                beginning, P[i], E[j], float(right - left), config
+            )
+            if found is not None:
+                root[i, j] = left + found
+        left = float(right)
+        va = vb
+    roots = [wall_p, root, wall_e]
     first = np.minimum(np.minimum(roots[0], roots[1]), roots[2])
     terminal = np.isfinite(first)
     code = np.where(

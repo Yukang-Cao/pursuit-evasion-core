@@ -7,6 +7,12 @@ outside the repository.
 
 ## Start here
 
+The current reversible-car work is in [`reversible/`](src/pursuit_evasion/reversible/).
+Start with [its physical model](docs/reversible-model.md), then the
+[reused MPPI tracker](docs/reversible-mppi.md), [free-space DP](docs/reversible-free-dp.md),
+[fixed-map DP](docs/reversible-world-dp.md), and [UCT prototype](docs/reversible-uct.md).
+The fixed-speed model below is retained for earlier reproducible experiments.
+
 1. Read [the physical game and boundary rules](docs/model.md).
 2. Follow [the code map](docs/architecture.md).
 3. Check [what is implemented](docs/status.md) before using an example.

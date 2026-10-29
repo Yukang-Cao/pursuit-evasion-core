@@ -1,9 +1,38 @@
 # Implementation status
 
-Updated 2026-10-28. This is a runnable research baseline, not a certified
+Updated 2026-10-29. This is a runnable research baseline, not a certified
 continuous-game solution or an onboard release.
 
-## Implemented
+## Current reversible-car implementation
+
+The `reversible/` package now includes acceleration-limited signed-speed dynamics,
+continuous event handling, a documented adaptation of the existing C-Free-Uniform
+MPPI routines, a lion-guided B1 controller, and declared reactive opponents.
+Targets and both players' commands update every 0.05 s. The legacy turning-circle
+filter and steering-effort penalty are absent from this tracker.
+
+A reusable 5D relative HJI solver has CPU and GPU implementations. A fixed-square
+8D HJI solver supports selected queries, signed histories and continuation runs.
+Physical speed boundaries use inward derivatives; generic signed-distance ghost
+extrapolation is explicitly rejected by the standard world-table reader. Small
+independent numerical checks and analytic capture cases supplement solver parity.
+
+A first adversarial UCT implementation uses DP/signed-field leaf estimates. It is
+**not yet the planned B2 using B1 rollout continuations**. Cloning and PPO are not
+implemented for the revised model. No robot or Jetson result is claimed.
+
+Current integrated check: 130 tests passed; two optional Torch reference checks
+were skipped in the minimal test environment and passed separately in the Torch
+CPU environment. Some numerical-table feedback cases still fail their predicted
+capture deadline. Grid/refinement and obstacle-transfer investigations remain in
+progress; successful computation is not a capture certificate.
+
+See [the reversible model](reversible-model.md) and the per-module documents linked
+from the README. Generated fields, replays and reports remain outside this repo.
+
+## Earlier fixed-speed implementation (retained)
+
+
 
 - The six-dimensional fixed-speed point-car game in one fixed square, exact
   held-command arcs, continuous-event checks, and separate capture/wall outcomes.
@@ -45,8 +74,8 @@ unconditionally physical capture time. Continuous PDE controls and sampled
 executed controls also differ. Field comparisons, refinement and controller
 replays supply checks, not a capture certificate.
 
-Matched UCT (B2), behavior cloning (B3), PPO (B4), and an eight-dimensional
-extension are not implemented. Exported demonstrations are not a trained
+For this earlier fixed-speed version, the original B2/B3/B4 pipeline was not completed.
+The revised-model 8D solver and DP-leaf UCT prototype are described above. Exported demonstrations are not a trained
 student. Map-conditioned learning remains deferred.
 
 Jetson Orin at at least 10 Hz is the online target. No Orin performance has been
