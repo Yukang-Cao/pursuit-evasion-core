@@ -11,6 +11,8 @@ The current reversible-car work is in [`reversible/`](src/pursuit_evasion/revers
 Start with [its physical model](docs/reversible-model.md), then the
 [reused MPPI tracker](docs/reversible-mppi.md), [free-space DP](docs/reversible-free-dp.md),
 [fixed-map DP](docs/reversible-world-dp.md), and [UCT prototype](docs/reversible-uct.md).
+A small [analytic capture check](docs/reversible-analytic-check.md) documents a
+known numerical limitation and its reproducible test.
 The fixed-speed model below is retained for earlier reproducible experiments.
 
 A tiny reversible CPU solve (requires `g++` with OpenMP):
