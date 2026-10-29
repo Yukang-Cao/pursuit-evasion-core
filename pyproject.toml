@@ -17,7 +17,7 @@ jax = ["hj-reachability>=0.7", "psutil>=5"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-pursuit_evasion = ["dp/*.cpp"]
+pursuit_evasion = ["dp/*.cpp", "reversible/*.cpp", "reversible/*.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
