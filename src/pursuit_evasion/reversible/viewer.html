@@ -65,6 +65,10 @@
       select {
         max-width: 100%;
       }
+      .bar label {
+        min-width: 0;
+        max-width: 100%;
+      }
       .panels {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -227,9 +231,9 @@
       <h1>Pursuit–evasion value explorer</h1>
       <p>
         Place both cars, then inspect the
-        <strong>5D free-space table</strong> as a 2D slice. The square wall
-        affects the action check; it is <strong>not included</strong> in this
-        value map.
+        <strong>5D free-space table</strong> as a 2D slice. Fix relative heading
+        and both speeds to inspect relative E positions. The edge of the value
+        map is a computation boundary, <strong>not a physical wall</strong>.
       </p>
       <div class="bar">
         <label
@@ -265,6 +269,15 @@
         /><span id="clock">Editable configuration</span>
       </div>
       <p id="context" class="note"></p>
+      <p class="legend">
+        <span style="color: #247d96">● P</span
+        ><span style="color: #bd7a31">● E</span
+        ><span style="color: #9b5b9b">◇ temporary MPPI waypoint</span
+        ><span
+          >Dashed connector points to the waypoint. Recorded world axes stay
+          fixed.</span
+        >
+      </p>
       <div class="panels">
         <section class="panel">
           <h2>World: drag P or E</h2>
@@ -402,7 +415,8 @@
         pending = false,
         debounce = null,
         drag = null,
-        presetId = null;
+        presetId = null,
+        editBounds = null;
       const P = "#247d96",
         E = "#bd7a31",
         G = "#9b5b9b";
@@ -457,9 +471,12 @@
         $("play").textContent = "Play recording";
       }
       function detach() {
+        const previousBounds = worldBounds();
         stop();
+        editBounds = previousBounds;
         editing = true;
         recordId = null;
+        result = null;
         currentSlice = null;
         $("time").disabled = true;
         $("play").disabled = true;
@@ -533,7 +550,8 @@
         c.strokeStyle = "#dce5e9";
         c.fillStyle = "#58717e";
         c.font = "17px system-ui";
-        let step = b[1] - b[0] > 10 ? 2 : 1;
+        let span = b[1] - b[0],
+          step = span <= 8 ? 1 : span <= 16 ? 2 : span <= 40 ? 5 : 10;
         for (let x = Math.ceil(b[0] / step) * step; x <= b[1]; x += step) {
           c.beginPath();
           c.moveTo(X(x), Y(b[2]));
@@ -557,11 +575,30 @@
         c.restore();
         c.textAlign = "left";
       }
+      function boundsForPoints(points) {
+        let xs = points.map((p) => p[0]),
+          ys = points.map((p) => p[1]);
+        let cx = (Math.min(...xs) + Math.max(...xs)) / 2,
+          cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+        let half = Math.max(
+          3.5,
+          (Math.max(...xs) - Math.min(...xs)) / 2 + 0.6,
+          (Math.max(...ys) - Math.min(...ys)) / 2 + 0.6,
+        );
+        return [cx - half, cx + half, cy - half, cy + half];
+      }
       function worldBounds() {
-        let half = meta.config.arena_half_width + 0.5;
-        for (let i of [0, 1, 4, 5])
-          half = Math.max(half, Math.abs(state[i]) + 0.5);
-        return [-half, half, -half, half];
+        if (record && !editing && record.displayBounds)
+          return record.displayBounds;
+        if (!$("free").checked) {
+          const half = meta.config.arena_half_width + 0.5;
+          return [-half, half, -half, half];
+        }
+        if (editBounds) return editBounds;
+        return boundsForPoints([
+          [state[0], state[1]],
+          [state[4], state[5]],
+        ]);
       }
       function drawWorld() {
         const a = axes($("world"), worldBounds(), "World x (m)", "World y (m)"),
@@ -606,15 +643,6 @@
           c.rotate(Math.PI / 4);
           c.strokeRect(-7, -7, 14, 14);
           c.restore();
-          c.fillStyle = G;
-          c.font = "18px system-ui";
-          c.textAlign = X(waypoint[0]) > 500 ? "right" : "left";
-          c.fillText(
-            "MPPI waypoint",
-            X(waypoint[0]) + (X(waypoint[0]) > 500 ? -13 : 13),
-            Y(waypoint[1]) - 10,
-          );
-          c.textAlign = "left";
         }
         c.strokeStyle = "#93b4c2";
         c.lineWidth = 1.5;
@@ -679,13 +707,15 @@
           let label =
             owner === "lion_mppi"
               ? "LION + " + (row.sampler === "log_mppi" ? "LOG-MPPI" : "MPPI")
-              : owner.startsWith("dp")
-                ? "DP CONTROL"
-                : owner.includes("free_dp")
+              : owner === "uct_b1"
+                ? "UCT SEARCH (B2)"
+                : owner.startsWith("dp")
                   ? "DP CONTROL"
-                  : owner === "ended"
-                    ? "RECORDING ENDED"
-                    : owner;
+                  : owner.includes("free_dp")
+                    ? "DP CONTROL"
+                    : owner === "ended"
+                      ? "RECORDING ENDED"
+                      : owner;
           $("policy").innerHTML =
             '<span class="mode">P now: ' +
             label +
@@ -840,10 +870,12 @@
           (d.dp
             ? ". " +
               d.dp.safe_commands +
-              " of 9 P commands pass the wall check. " +
+              ($("free").checked
+                ? " of 9 P commands are physically admissible. "
+                : " of 9 P commands pass the wall check. ") +
               (d.dp.resolved
                 ? "At least one feasible action has a finite worst-response time."
-                : "No feasible action has a finite worst-response time; signed-field guidance may still exist.")
+                : "No tested P command has usable DP continuation values against every tested E response.")
             : "");
         $("point").textContent =
           "This table has no walls. Colored coverage alone does not authorize a DP takeover. " +
@@ -882,13 +914,29 @@
       async function loadExample(id) {
         stop();
         presetId = id;
+        $("example").value = id;
         record = null;
         result = null;
         currentSlice = null;
+        editBounds = null;
         if (id.startsWith("r:")) {
           recordId = id.slice(2);
           let e = meta.replays.find((x) => x.id === recordId);
           record = await api("/api/replay/" + recordId);
+          record.displayBounds =
+            record.world.half_width == null
+              ? boundsForPoints(
+                  record.trace.flatMap((r) => [
+                    [r.state[0], r.state[1]],
+                    [r.state[4], r.state[5]],
+                  ]),
+                )
+              : [
+                  -record.world.half_width - 0.5,
+                  record.world.half_width + 0.5,
+                  -record.world.half_width - 0.5,
+                  record.world.half_width + 0.5,
+                ];
           frame = 0;
           editing = false;
           state = record.trace[0].state.slice();
@@ -1009,7 +1057,11 @@
             Math.hypot(p[0] - state[4], p[1] - state[5]),
           ],
           i = ds[0] < ds[1] ? 0 : 4;
-        if (Math.min(...ds) > 0.6) return;
+        if (
+          Math.min(...ds) >
+          Math.max(0.6, ((worldBounds()[1] - worldBounds()[0]) * 18) / 610)
+        )
+          return;
         detach();
         drag = i;
         $("world").setPointerCapture(e.pointerId);
@@ -1018,12 +1070,12 @@
         if (drag == null) return;
         let p = worldPoint(e);
         state[drag] = Math.max(
-          -meta.config.arena_half_width - 0.45,
-          Math.min(meta.config.arena_half_width + 0.45, p[0]),
+          worldBounds()[0],
+          Math.min(worldBounds()[1], p[0]),
         );
         state[drag + 1] = Math.max(
-          -meta.config.arena_half_width - 0.45,
-          Math.min(meta.config.arena_half_width + 0.45, p[1]),
+          worldBounds()[2],
+          Math.min(worldBounds()[3], p[1]),
         );
         if (drag === 0) anchor = state.slice(0, 2);
         schedule();
@@ -1117,7 +1169,12 @@
             $("example").add(new Option(p.label, p.id));
           for (let r of meta.replays)
             $("example").add(new Option("Replay · " + r.label, "r:" + r.id));
-          await loadExample(meta.presets[0].id);
+          const requested = new URLSearchParams(location.search).get("replay");
+          await loadExample(
+            requested && meta.replays.some((r) => r.id === requested)
+              ? "r:" + requested
+              : meta.presets[0].id,
+          );
         } catch (e) {
           $("busy").textContent = "Error";
           $("query").textContent = e.message;
@@ -1125,6 +1182,7 @@
       })();
       window.VIEWER_QA = {
         getState: () => state.slice(),
+        getBounds: () => worldBounds().slice(),
         getResult: () => result,
         loadExample,
         moveFrame,

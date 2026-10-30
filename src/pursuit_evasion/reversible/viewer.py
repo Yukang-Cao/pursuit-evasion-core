@@ -86,29 +86,58 @@ class Explorer:
     def __init__(self, manifest):
         self.manifest_path = Path(manifest).resolve()
         self.manifest = json.loads(self.manifest_path.read_text())
+        self.catalogue_mtime = self.manifest_path.stat().st_mtime_ns
         self.tables = {}
         self.replays = {}
+        self.replay_cache = OrderedDict()
         self.views = OrderedDict()
         self.slices = OrderedDict()
         self.lock = Lock()
+        self.lookahead = float(self.manifest.get("lookahead", 1.0))
+        if not np.isfinite(self.lookahead) or self.lookahead <= 0:
+            raise ValueError("Invalid approach lookahead")
         for entry in self.manifest["tables"]:
             table = RelativeTable(self._path(entry["path"]))
             self.tables[entry["id"]] = (entry, table)
         first = next(iter(self.tables.values()))[1]
-        self.config = ReversibleConfig.from_dict(first.physics)
+        self.config = ReversibleConfig.from_dict(
+            first.meta.get("config", first.physics)
+        )
         for _, table in self.tables.values():
             table.assert_compatible(self.config)
         for entry in self.manifest.get("replays", []):
             self.replays[entry["id"]] = (
                 entry,
-                json.loads(self._path(entry["path"]).read_text()),
+                (
+                    None
+                    if "outcome" in entry and "end_time" in entry
+                    else json.loads(self._path(entry["path"]).read_text())
+                ),
             )
 
     def _path(self, value):
         p = Path(value)
         return p if p.is_absolute() else self.manifest_path.parent / p
 
+    def refresh_catalogue(self):
+        changed = self.manifest_path.stat().st_mtime_ns
+        if changed == self.catalogue_mtime:
+            return
+        current = json.loads(self.manifest_path.read_text())
+        for entry in current.get("replays", []):
+            if entry["id"] not in self.replays:
+                self.replays[entry["id"]] = (
+                    entry,
+                    (
+                        None
+                        if "outcome" in entry and "end_time" in entry
+                        else json.loads(self._path(entry["path"]).read_text())
+                    ),
+                )
+        self.catalogue_mtime = changed
+
     def metadata(self):
+        self.refresh_catalogue()
         return {
             "tables": [
                 {
@@ -129,8 +158,8 @@ class Explorer:
                     "label": e["label"],
                     "p_strategy": e["p_strategy"],
                     "e_strategy": e["e_strategy"],
-                    "outcome": d["outcome"],
-                    "end_time": d["end_time"],
+                    "outcome": e["outcome"] if d is None else d["outcome"],
+                    "end_time": e["end_time"] if d is None else d["end_time"],
                     "table": e["table"],
                     "coverage": e.get("coverage"),
                 }
@@ -160,7 +189,19 @@ class Explorer:
         }
 
     def replay(self, key):
+        self.refresh_catalogue()
         entry, d = self.replays[key]
+        if d is None:
+            if key not in self.replay_cache:
+                self.replay_cache[key] = json.loads(
+                    self._path(entry["path"]).read_text()
+                )
+                while len(self.replay_cache) > 4:
+                    self.replay_cache.popitem(last=False)
+            self.replay_cache.move_to_end(key)
+            d = self.replay_cache[key]
+        record_config = ReversibleConfig.from_dict(d["config"])
+        self.tables[entry["table"]][1].assert_compatible(record_config)
         return {
             "id": key,
             "initial": d["initial"],
@@ -232,7 +273,7 @@ class Explorer:
         decision = None
         rows = []
         u = None
-        if physically_valid and point_in_domain:
+        if physically_valid:
             u, decision = dp_decision(state, table, self.config, world)
             commands = action_catalogue(self.config.pursuer)
             safe = braking_safe_mask(state[:4], commands, self.config, world)
@@ -251,7 +292,6 @@ class Explorer:
         capture = bool(np.linalg.norm(relative[:2]) <= self.config.capture_radius)
         can_dp = bool(
             not capture
-            and np.isfinite(value)
             and decision
             and decision["resolved"]
             and decision["guard_accepts"]
@@ -259,7 +299,9 @@ class Explorer:
         anchor = np.asarray(request.get("anchor", state[:2]), float)
         if anchor.shape != (2,) or not np.isfinite(anchor).all():
             raise ValueError("Invalid lion anchor")
-        lion = LionTarget(step_length=1, update_period=self.config.control_dt)
+        lion = LionTarget(
+            step_length=self.lookahead, update_period=self.config.control_dt
+        )
         lion.reset(state[[0, 1, 2, 4, 5, 6]])
         lion.anchor = anchor
         goal = lion.target_at(state[[0, 1, 2, 4, 5, 6]], 0)
@@ -267,10 +309,12 @@ class Explorer:
             mode = "invalid: vehicle outside wall"
         elif capture:
             mode = "captured"
+        elif can_dp:
+            mode = "DP"
         elif not point_in_domain:
             mode = "lion + MPPI (outside table domain)"
         else:
-            mode = "DP" if can_dp else "lion + MPPI"
+            mode = "lion + MPPI"
         # Small maps are returned directly as numeric pixels; browser maps the colors.
         result = {
             "relative": relative.tolist(),
@@ -337,17 +381,18 @@ def serve(manifest, port=8765, open_browser=True):
             self.wfile.write(raw)
 
         def do_GET(self):
+            route = self.path.partition("?")[0]
             try:
-                if self.path in ("/", "/index.html"):
+                if route in ("/", "/index.html"):
                     self.send(
                         Path(__file__).with_name("viewer.html").read_bytes(),
                         kind="text/html; charset=utf-8",
                     )
-                elif self.path == "/api/meta":
+                elif route == "/api/meta":
                     self.send(explorer.metadata())
-                elif self.path.startswith("/api/replay/"):
-                    self.send(explorer.replay(self.path.rsplit("/", 1)[-1]))
-                elif self.path == "/health":
+                elif route.startswith("/api/replay/"):
+                    self.send(explorer.replay(route.rsplit("/", 1)[-1]))
+                elif route == "/health":
                     self.send(
                         {
                             "ok": True,

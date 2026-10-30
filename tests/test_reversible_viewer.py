@@ -100,3 +100,79 @@ def test_wall_invalid_state_is_not_mislabeled_as_capture(tmp_path):
     assert not data["physical_state_valid"]
     assert data["predicted_B1_mode"].startswith("invalid")
     assert explorer.metadata()["presets"]
+
+
+def test_replay_metadata_can_load_lazily_and_rejects_wrong_dynamics(tmp_path):
+    from dataclasses import replace
+
+    table, c = fixture(tmp_path)
+    episode = {
+        "initial": [0, 0, 0, 0, 1, 0, 0, 0],
+        "world": {"half_width": None, "obstacles": []},
+        "config": c.to_dict(),
+        "outcome": "timeout",
+        "end_time": 0.05,
+        "trace": [
+            {
+                "t": 0,
+                "state": [0, 0, 0, 0, 1, 0, 0, 0],
+                "p_control": [0, 0],
+                "e_control": [0, 0],
+                "pursuer": {},
+            }
+        ],
+    }
+    f = tmp_path / "episode.json"
+    f.write_text(json.dumps(episode))
+    entry = {
+        "id": "r",
+        "label": "case",
+        "p_strategy": "B1",
+        "e_strategy": "reactive",
+        "path": str(f),
+        "table": "a",
+        "outcome": "timeout",
+        "end_time": 0.05,
+    }
+    m = tmp_path / "m.json"
+    m.write_text(
+        json.dumps(
+            {
+                "tables": [{"id": "a", "label": "table", "path": str(table.folder)}],
+                "replays": [entry],
+            }
+        )
+    )
+    e = Explorer(m)
+    assert e.replays["r"][1] is None
+    assert e.metadata()["replays"][0]["outcome"] == "timeout"
+    assert e.replay("r")["initial"] == episode["initial"]
+    episode["config"] = replace(c, pursuer=replace(c.pursuer, acceleration=3)).to_dict()
+    f.write_text(json.dumps(episode))
+    e = Explorer(m)
+    with pytest.raises(ValueError):
+        e.replay("r")
+
+
+def test_viewer_catalogue_discovers_new_completed_recordings(tmp_path):
+    table, c = fixture(tmp_path)
+    m = tmp_path / "manifest.json"
+    base = {"tables": [{"id": "a", "label": "table", "path": str(table.folder)}]}
+    m.write_text(json.dumps(base))
+    e = Explorer(m)
+    assert not e.metadata()["replays"]
+    base["replays"] = [
+        {
+            "id": "new",
+            "label": "new",
+            "p_strategy": "B1",
+            "e_strategy": "reactive",
+            "path": "not_loaded_yet.json",
+            "table": "a",
+            "outcome": "capture",
+            "end_time": 2.0,
+        }
+    ]
+    m.write_text(json.dumps(base))
+    assert e.metadata()["replays"][0]["id"] == "new"
+    assert e.replays["new"][1] is None
