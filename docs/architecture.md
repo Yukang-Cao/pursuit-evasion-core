@@ -7,7 +7,7 @@ Start with [the reversible model](reversible-model.md), then
 `examples/chase_free.py`. The original fixed-speed CLI below is separate.
 
 1. `reversible/model.py` and `game.py`: signed-speed dynamics and capture events.
-2. `reversible/free_dp.py`, `gpu_free_dp.py`, `relative_table.py`: offline fields
+2. `reversible/free_dp.py`, `gpu_relative.py`, `relative_table.py`: offline fields
    and model-checked online queries. The GPU implementation is optional.
 3. `reversible/controllers.py`: successor-based B1 switch; `lion.py` and
    `mppi.py`: geometric target and navigation tracking.

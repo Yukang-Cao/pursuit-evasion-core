@@ -1,5 +1,10 @@
 # The first physical game
 
+> This page documents the earlier fixed-speed square game. Current experiments
+> use the [acceleration-limited reversible model](reversible-model.md) in free
+> space with `configs/reversible_free_a3.json` (3 m/s² for both players).
+> Use that explicit configuration; bare legacy defaults remain for reproduction.
+
 Two point cars move in a fixed square. Both speeds are positive and constant.
 The state is `[xP, yP, thetaP, xE, yE, thetaE]`, in metres and radians.
 The commands are P and E angular velocities in rad/s. They are not steering

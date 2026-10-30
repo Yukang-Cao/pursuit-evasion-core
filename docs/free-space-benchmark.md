@@ -44,6 +44,16 @@ the controller's 0.05 s execution interval. The GPU solve used float32 local
 arithmetic, so it is a declared numerical approximation. Model metadata prevents
 using an earlier acceleration model with the new controller.
 
+To reproduce this large solve with a compatible CuPy/CUDA installation, use a
+fresh output directory with room for the 104 GB retained output:
+
+```bash
+python -m pursuit_evasion.reversible.gpu_relative /absolute/output/free-a3-fine \
+  --config configs/reversible_free_a3.json --positions 193 --headings 96 \
+  --p-speeds 13 --e-speeds 13 --extent 4 --horizon 8 --output-dt 0.2 \
+  --local-precision float32 --max-working-gb 7.6
+```
+
 The solve took 40.66 minutes on the development laptop. Core GPU arrays required
 7.25 GB, its allocator reserved 7.87 GB, and the host transfer buffer required
 2.42 GB. Output occupied 103.94 GB. These figures distinguish working allocations
@@ -59,14 +69,36 @@ DP/approach/search owner in replays.
 B1 and approach-only each captured 36/64; their mean capped times were 28.39
 and 28.57 s. The selected paired improvement was 30.22 to 27.67 s, with identical
 executed states before the first DP command at 22.80 s. All 28 B1 timeouts
-occurred without DP takeover. This shows a local finishing benefit, not improved
-capture coverage in this dataset.
+occurred without DP takeover. All 32 starts with E initially ahead captured;
+only 4 of the 32 behind starts captured. In every timeout, P stayed near its
+reverse-speed cap for the final ten seconds. This shows a local finishing benefit,
+not improved capture coverage in this dataset.
 
 The initial B2 configuration captured 33/64 and had mean capped time 29.33 s.
-It did not improve B1. Conditional longer continuations were also insufficient
-on the complete grid. These negative results are retained; a working search
-implementation is not evidence of a stronger controller.
+It did not improve B1. Conditional longer continuations also captured 33/64
+(mean capped time 29.29 s); the equal-budget visit-count root rule captured 32/64
+(29.57 s). These negative results are retained; a working search implementation
+is not evidence of a stronger controller. The conditional variant uses up to
+256 simulations when triggered, so it is not an equal-compute comparison.
 
 Physical simulation advances at a fixed 0.05 s interval regardless of planning
 latency. B2 currently takes far longer than that budget. Planning quality here
 must not be presented as real-time Jetson performance.
+
+
+## Warm serial laptop timing
+
+After the cohort workers finished, repeated fixed-state calls measured:
+
+- One value query: median 0.110 ms; 95th percentile 0.449 ms (200 calls).
+- B1 approach decision: 6.278 / 6.358 ms (100 calls).
+- B1 DP decision: 0.590 / 0.622 ms (100 calls).
+- B2 search far from the table: 906.17 / 916.72 ms (12 calls).
+- B2 search just before takeover: 45.35 / 45.67 ms (12 calls).
+
+Table/kernel caches were warm. Planner reset occurred outside each timed call;
+the original geometric anchor was retained. Full controller calls were timed,
+excluding compilation, initial file loading and rendering. These measurements
+show the scale of this CPU prototype; they are not a lower bound on MCTS or a
+Jetson benchmark. Near-table search can be much cheaper because DP terminates
+many continuations. Far-state search still greatly exceeds the 50 ms budget.

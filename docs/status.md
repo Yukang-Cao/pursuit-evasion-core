@@ -21,7 +21,7 @@ The Oct 30 configuration `reversible_free_a3.json` uses equal acceleration limit
 of 3 m/s² and free space. B1 now evaluates successor actions even when its current
 state is unresolved; the old gate remains an explicit option. A bounded B2 UCT
 implementation now simulates B1 feedback continuations, with documented rollout
-initialization and heuristic truncation. The first 64-case comparison did not improve B1: 33 captures versus 36 for B1. A separate visit-count root rule is still under evaluation.
+initialization and heuristic truncation. The first 64-case comparison did not improve B1: 33 captures versus 36 for B1. The completed visit-count root variant captured 32/64; conditional longer B1 continuations captured 33/64. None improved the 36/64 B1 capture count.
 The earlier DP-leaf prototype remains separate. Cloning and PPO are not yet
 implemented for the revised model; no robot or Jetson result is claimed.
 
@@ -44,6 +44,11 @@ The optional native free-space MPPI cost backend preserves the objective and
 was checked against nine complete NumPy-reference B2 episodes with identical
 executed states. It reduces rollout cost, but B2 still exceeds the 50 ms control
 budget. Adaptive longer rollouts near DP did not improve aggregate captures.
+Warm serial laptop calls measured median / 95th percentile: one value lookup
+0.110 / 0.449 ms; B1 approach 6.278 / 6.358 ms; B1 DP 0.590 / 0.622 ms;
+B2 far-state search 906.17 / 916.72 ms. These are repeated fixed-state calls,
+not Jetson measurements or an end-to-end latency guarantee.
+
 The updated viewer uses the table's declared dynamics, successor-based switching,
 fixed replay axes and lazy episode loading; all completed cases can be inspected.
 
