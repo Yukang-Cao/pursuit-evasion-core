@@ -105,6 +105,8 @@ class RelativeTable:
         ii, weights, valid, shape = self.stencil(states)
         tau = np.broadcast_to(np.asarray(budget, dtype=float), shape).reshape(-1)
         valid &= np.isfinite(tau) & (tau >= 0) & (tau <= self.horizon + 1e-10)
+        if not valid.any():
+            return np.full(shape, np.nan)
         tau = np.where(np.isfinite(tau), tau, 0)
         k = np.clip(
             np.searchsorted(self.times, tau, side="right") - 1, 0, len(self.times) - 2
@@ -117,6 +119,18 @@ class RelativeTable:
     def value(self, states):
         """First crossing of interpolated signed fields, never interpolated arrivals."""
         ii, weights, valid, shape = self.stencil(states)
+
+        if not valid.any():
+            flat = np.asarray(states, dtype=float).reshape(-1, 5)
+            captured = (
+                np.linalg.norm(flat[:, :2], axis=1) <= self.physics["capture_radius"]
+            )
+            physical = np.isfinite(flat).all(1)
+            for k, key in [(3, "pursuer"), (4, "evader")]:
+                physical &= (flat[:, k] >= self.physics[key]["speed_min"] - 1e-10) & (
+                    flat[:, k] <= self.physics[key]["speed_max"] + 1e-10
+                )
+            return np.where(captured & physical, 0.0, np.nan).reshape(shape)
 
         def sample(k):
             return (self._flat[np.asarray(k)[:, None], ii] * weights).sum(1)

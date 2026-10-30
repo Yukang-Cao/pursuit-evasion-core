@@ -99,6 +99,15 @@ def advance(state, p_control, e_control, config, duration=None, world=None):
         return joint_step(s, p_control, e_control, t, config)
 
     endpoint = pose(dt)  # validates all inputs before event handling
+    if (
+        world.half_width is None
+        and not world.obstacles
+        and np.linalg.norm(s[:2] - s[4:6])
+        > config.capture_radius
+        + (config.pursuer.max_abs_speed + config.evader.max_abs_speed) * dt
+        + 1e-12
+    ):
+        return Transition(endpoint, dt, None)
     roots = [
         first_wall_time(s[:4], p_control, dt, config.pursuer, world),
         first_capture_time(s, p_control, e_control, dt, config),
@@ -141,6 +150,15 @@ def predict_pairs(state, p_controls, e_controls, config, duration=None, world=No
         return joint_step(s, P[:, None, :], E[None, :, :], t, config)
 
     endpoint = poses(dt)
+    if (
+        world.half_width is None
+        and not world.obstacles
+        and np.linalg.norm(s[:2] - s[4:6])
+        > config.capture_radius
+        + (config.pursuer.max_abs_speed + config.evader.max_abs_speed) * dt
+        + 1e-12
+    ):
+        return endpoint, np.full(shape, dt), np.zeros(shape, dtype=int)
     initial = np.broadcast_to(s, endpoint.shape)
     p_roots = np.array(
         [first_wall_time(s[:4], u, dt, config.pursuer, world) for u in P], object

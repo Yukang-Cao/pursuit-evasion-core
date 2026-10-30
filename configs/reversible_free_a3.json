@@ -1,0 +1,10 @@
+{
+  "name": "reversible_free_a3",
+  "pursuer": {"speed_min": -1.0, "speed_max": 2.0, "acceleration": 3.0, "max_curvature": 1.0},
+  "evader": {"speed_min": -0.5, "speed_max": 1.0, "acceleration": 3.0, "max_curvature": 2.0},
+  "capture_radius": 0.3,
+  "control_dt": 0.05,
+  "arena_half_width": 3.0,
+  "boundary_rule": "first_fault_loses",
+  "point_vehicles": true
+}

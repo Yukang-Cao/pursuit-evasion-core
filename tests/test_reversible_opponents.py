@@ -134,3 +134,43 @@ def test_wall_parallel_motion_is_not_rejected_for_small_clearance():
 def test_dp_mode_requires_a_table():
     with pytest.raises(ValueError):
         ReactiveEvader(ReversibleConfig(), WorldMap(None), mode="dp")
+
+
+def test_free_space_shortcut_preserves_the_declared_opponent_policy():
+    from dataclasses import replace
+
+    base = ReversibleConfig()
+    c = replace(
+        base,
+        pursuer=replace(base.pursuer, acceleration=3),
+        evader=replace(base.evader, acceleration=3),
+    )
+    fast = ReactiveEvader(c, WorldMap(None))
+    reference = ReactiveEvader(c, WorldMap(100))
+    rng = np.random.default_rng(3030)
+    for _ in range(30):
+        s = np.array(
+            [
+                0,
+                0,
+                rng.uniform(-np.pi, np.pi),
+                rng.uniform(-1, 2),
+                rng.uniform(5, 15),
+                rng.uniform(-10, 10),
+                rng.uniform(-np.pi, np.pi),
+                rng.uniform(-0.5, 1),
+            ]
+        )
+        u = rng.uniform([-3, -1], [3, 1])
+        np.testing.assert_array_equal(fast.command(s, u), reference.command(s, u))
+        np.testing.assert_allclose(
+            fast.last["candidate_utilities"],
+            reference.last["candidate_utilities"],
+            rtol=0,
+            atol=1e-12,
+        )
+        assert fast.last["exact_free_space_shortcut"]
+        a = advance(s, u, fast.actions[0], c, world=WorldMap(None))
+        b = advance(s, u, fast.actions[0], c, world=WorldMap(100))
+        np.testing.assert_array_equal(a.state, b.state)
+        assert a.event == b.event is None and a.elapsed == b.elapsed

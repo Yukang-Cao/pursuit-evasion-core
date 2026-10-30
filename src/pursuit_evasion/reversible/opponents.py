@@ -165,6 +165,51 @@ class ReactiveEvader:
             raise ValueError("Expected state[8] and current P command[2].")
         # Shared propagation validates finiteness, speed and control bounds.
         joint_step(state, p_control, self.actions, 0, self.config)
+        # In free space, a speed bound can certify that every preview remains
+        # beyond the capped minimum-distance term. Its contribution is then
+        # identical for all E candidates, so endpoint ranking is exactly the
+        # original policy, without repeated intermediate geometry checks.
+        cap = self.config.capture_radius + 0.3
+        if (
+            self.mode == "separation"
+            and self.world.half_width is None
+            and not self.world.obstacles
+            and np.linalg.norm(state[:2] - state[4:6])
+            > cap
+            + (self.config.pursuer.max_abs_speed + self.config.evader.max_abs_speed)
+            * self.horizon
+            + 1e-12
+        ):
+            endpoints = joint_step(
+                state, p_control, self.actions, self.horizon, self.config
+            )
+            utility = 2 * cap + np.linalg.norm(
+                endpoints[:, :2] - endpoints[:, 4:6], axis=1
+            )
+            selected = int(np.argmax(utility))
+            command = self.actions[selected].copy()
+            self.last = dict(
+                policy="reactive_reversible_separation",
+                command=command.tolist(),
+                selected_index=selected,
+                selection_basis="separation",
+                fallback=False,
+                valid_candidates=len(self.actions),
+                observes_current_P_command=True,
+                prediction_horizon=self.horizon,
+                execution_interval=self.config.control_dt,
+                P_prediction="current P command held only inside the heuristic prediction",
+                candidate_controls=self.actions.tolist(),
+                candidate_wall_times=[None] * len(self.actions),
+                candidate_utilities=utility.tolist(),
+                predicted_event_codes=[0] * len(self.actions),
+                predicted_event_times=[self.horizon] * len(self.actions),
+                first_interval_event_codes=[0] * len(self.actions),
+                first_interval_event_times=[self.config.control_dt] * len(self.actions),
+                exact_free_space_shortcut=True,
+                wall_seconds=time.perf_counter() - begin,
+            )
+            return command
         wall_times = self._wall_times(state)
         valid = ~np.isfinite(wall_times)
         utility, preview_codes, preview_times = self._preview(state, p_control)

@@ -6,20 +6,19 @@ against the map and uses the approach controller when its DP conditions fail.
 
 ## The actual switch, every 0.05 seconds
 
-1. Transform the world state to relative E position, relative heading, and both
-   signed speeds. Query the free-space table for an estimated capture time.
-2. If the current state is outside the table or has no time estimate within its
-   stored coverage, use lion + MPPI.
-3. Otherwise, enumerate nine current P commands and nine E responses. Each
-   command is an acceleration/curvature pair. Simulate one control interval with
-   physical capture and boundary events.
-4. Reject P commands that lack a checked collision-free braking continuation.
-   For each remaining P command, take its worst E response cost. A continuing
-   pair's cost is elapsed time plus the successor's DP time estimate. Unresolved
-   successor times make the row unavailable to B1. Immediate terminal outcomes
-   follow the declared game rules.
-5. If any accepted row has a finite worst-response cost, execute the row with
-   the lowest such cost. Otherwise use lion + MPPI.
+1. Enumerate nine current P commands and nine E responses, including when the
+   current relative state is outside the table or has no known time estimate.
+2. Propagate each joint pair for one control interval. Query the successor states,
+   with physical terminal outcomes handled before continuation values.
+3. Reject P commands that fail the map/braking check. A continuing pair's cost is
+   elapsed time plus its successor DP time. An unresolved response makes that P
+   row unavailable to B1's time-based action selection.
+4. If at least one accepted P row has a finite worst-response cost, execute the
+   command with the lowest such cost. Otherwise use lion + log-MPPI.
+
+The current-state value is diagnostic; it is no longer a prerequisite. A state
+just outside coverage can therefore enter through a useful first action.
+`takeover="current_and_successor"` retains the old gate for reproducibility.
 
 This check repeats after each executed command. A run can switch from approach
 into DP and later back to approach. There is no fixed distance threshold and no

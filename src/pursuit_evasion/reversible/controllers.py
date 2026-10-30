@@ -144,7 +144,9 @@ class Baseline1:
 
     Modes: 'hybrid', 'approach' (DP disabled), 'dp' (use any available field
     guidance; outside-domain states use the same approach fallback).
-    There is no strict countdown or claim of a certified handoff.
+    The default successor rule tries the one-step backup even when the current
+    query is unresolved or outside the table. current_and_successor preserves
+    the earlier gate for explicit comparisons. There is no strict countdown.
     New B1 instances use the tested broad log-MPPI approach sampler. Pass
     MPPISettings() explicitly to reproduce the previous Gaussian approach.
     """
@@ -158,6 +160,7 @@ class Baseline1:
         seed=0,
         mppi_settings=None,
         lookahead=1.0,
+        takeover="successor",
     ):
         if mode not in ("hybrid", "approach", "dp"):
             raise ValueError("Unknown controller mode.")
@@ -165,6 +168,9 @@ class Baseline1:
         self.world = WorldMap(config.arena_half_width) if world is None else world
         self.table = table
         self.mode = mode
+        if takeover not in ("successor", "current_and_successor"):
+            raise ValueError("Unknown takeover rule")
+        self.takeover = takeover
         if table is not None:
             if hasattr(table, "assert_compatible"):
                 table.assert_compatible(config)
@@ -223,7 +229,8 @@ class Baseline1:
             inside = np.isfinite(
                 float(self.table.field(q, float(self.table.times[-1])))
             )
-            if inside and (np.isfinite(value) or self.mode == "dp"):
+            eligible = self.takeover == "successor" or (inside and np.isfinite(value))
+            if eligible or (inside and self.mode == "dp"):
                 u, decision = dp_decision(s, self.table, self.config, self.world)
                 if (
                     decision["guard_accepts"]
@@ -233,6 +240,7 @@ class Baseline1:
                     owner = "dp" if decision["resolved"] else "dp_field_guide"
                     self.last = dict(
                         control_owner=owner,
+                        takeover_rule=self.takeover,
                         dp_value=value,
                         dp=decision,
                         seconds=time.perf_counter() - start,
@@ -264,6 +272,7 @@ class Baseline1:
                 guard_failure = True
         self.last = dict(
             control_owner=owner,
+            takeover_rule=self.takeover,
             dp_value=value,
             dp=decision,
             lion=dict(self.lion.last),

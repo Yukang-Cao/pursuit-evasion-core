@@ -43,3 +43,66 @@ def test_unknown_time_remains_signed_guidance_not_fake_capture_time():
     u, info = dp_decision(state, UnknownTable(), c, w)
     assert not info["resolved"] and info["kind"] == "signed_field"
     assert np.isinf(info["estimated_cost"]) and info["guidance_available"]
+
+
+def test_successor_rule_can_enter_known_domain_from_unknown_current_state():
+    from pursuit_evasion.reversible.controllers import Baseline1
+    from pursuit_evasion.reversible.mppi import MPPISettings
+
+    class LimitedTable:
+        times = np.array([0.0, 4.0])
+
+        def value(self, states):
+            s = np.asarray(states)
+            return np.where(np.abs(s[..., 0]) <= 4.0, 1.0, np.nan)
+
+        def field(self, states, budget):
+            s = np.asarray(states)
+            return np.where(np.abs(s[..., 0]) <= 4.0, -1.0, np.nan)
+
+    c = ReversibleConfig()
+    s = np.array([0, 0, 0, 2, 4.03, 0, 0, 0])
+    new = Baseline1(
+        c,
+        WorldMap(None),
+        LimitedTable(),
+        mppi_settings=MPPISettings(samples=16, horizon=0.1),
+    )
+    new.command(s)
+    assert new.last["control_owner"] == "dp"
+    assert np.isnan(new.last["dp_value"])
+    old = Baseline1(
+        c,
+        WorldMap(None),
+        LimitedTable(),
+        takeover="current_and_successor",
+        mppi_settings=MPPISettings(samples=16, horizon=0.1),
+    )
+    old.command(s)
+    assert old.last["control_owner"] == "lion_mppi"
+
+
+def test_one_unknown_e_response_prevents_successor_time_takeover():
+    from pursuit_evasion.reversible.controllers import Baseline1
+    from pursuit_evasion.reversible.mppi import MPPISettings
+
+    class MissingReply:
+        times = np.array([0.0, 4.0])
+
+        def value(self, s):
+            s = np.asarray(s)
+            return np.where(s[..., 4] > 0.0, np.nan, 1.0)
+
+        def field(self, s, t):
+            return np.ones(np.asarray(s).shape[:-1])
+
+    c = ReversibleConfig()
+    ctrl = Baseline1(
+        c,
+        WorldMap(None),
+        MissingReply(),
+        mppi_settings=MPPISettings(samples=16, horizon=0.1),
+    )
+    ctrl.command([0, 0, 0, 1, 2, 0, 0, 0])
+    assert ctrl.last["control_owner"] == "lion_mppi"
+    assert not ctrl.last["dp"]["resolved"]
