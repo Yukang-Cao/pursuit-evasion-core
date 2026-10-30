@@ -182,7 +182,7 @@ class AdversarialUCT:
         if values:
             node.exact_value = min(values) if node.player == "P" else max(values)
 
-    def simulate(self):
+    def simulate(self, root_pair=None):
         node = self.root
         path = []
         while True:
@@ -191,7 +191,12 @@ class AdversarialUCT:
             if node.exact_value is not None:
                 result = node.exact_value
                 break
-            action = self._select(node)
+            if root_pair is not None and node.depth == 0:
+                action = root_pair[0 if node.player == "P" else 1]
+                if action not in node.actions:
+                    raise ValueError("Forced root pair is not a legal action")
+            else:
+                action = self._select(node)
             edge = node.edges.get(action)
             if node.player == "P":
                 if edge is None:

@@ -200,3 +200,22 @@ def test_actual_root_guard_failure_is_reported_separately_from_search_nodes():
     ctrl.command([2.99, 0, 0, 1, 0, 1, 0, 0])
     assert ctrl.last["guard_failure"]
     assert ctrl.last["search"]["simulations"] == 0
+
+
+def test_forced_root_pairs_cover_all_responses_before_adaptive_search():
+    costs = np.array([[1.0, 6.0], [4.0, 5.0]])
+    t = AdversarialUCT(
+        0,
+        lambda s: (0, 1),
+        lambda s, p: (0, 1),
+        lambda s, p, e: SearchStep(1, costs[p, e], True),
+        lambda s: 0.0,
+        depth=1,
+    )
+    for p in range(2):
+        for e in range(2):
+            t.simulate(root_pair=(p, e))
+    result = t.search(0)
+    assert result["action"] == 1
+    assert result["finite_tree_exhausted"]
+    assert all(r["responses_tested"] == 2 for r in result["root_actions"])

@@ -30,11 +30,25 @@ def compact_decision(data):
     """Keep meaningful decisions, not a full sampled-bank dump at every tick."""
     out = {
         k: data[k]
-        for k in ("control_owner", "dp_value", "shielded", "guard_failure", "seconds")
+        for k in (
+            "control_owner",
+            "takeover_rule",
+            "dp_value",
+            "shielded",
+            "guard_failure",
+            "seconds",
+        )
         if k in data
     }
     if data.get("dp") is not None:
         out["dp"] = data["dp"]
+    if "search" in data:
+        # Keep per-decision search work/timing, not a full tree at every tick.
+        out["search"] = {
+            k: v
+            for k, v in data["search"].items()
+            if isinstance(v, (str, int, float, bool)) or v is None
+        }
     if "lion" in data:
         out["lion"] = data["lion"]
     if "mppi" in data:
