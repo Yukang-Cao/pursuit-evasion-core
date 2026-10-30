@@ -24,6 +24,7 @@ class MPPISettings:
     temperature: float = 0.5
     noise_std: tuple[float, float] | None = None
     sampler: str = "gaussian"
+    cost_backend: str = "numpy"
     log_noise_sigma: float = 1.0
     goal_tolerance: float = 0.15
     distance_weight: float = 1.0
@@ -97,6 +98,12 @@ class ReversibleMPPI:
             or not 0 <= settings.log_noise_sigma <= 3
         ):
             raise ValueError("log_noise_sigma must be between zero and three")
+        if settings.cost_backend not in ("numpy", "native_free"):
+            raise ValueError("Unknown MPPI cost backend")
+        if settings.cost_backend == "native_free" and (
+            self._map is None or self._map.half_width is not None or self._map.obstacles
+        ):
+            raise ValueError("Native cost backend is restricted to explicit free space")
         self.reset()
 
     def sample_noise(self, shape):
@@ -149,7 +156,7 @@ class ReversibleMPPI:
             time_tolerance=1e-10,
         )
 
-    def _rollout(self, pose, commands, target):
+    def _rollout(self, pose, commands, target, *, return_paths=True):
         """Return costs, validity, safe-prefix lengths, paths for [sample,time,2]."""
         pose = np.asarray(pose, float)
         commands = np.asarray(commands, float)
@@ -160,6 +167,18 @@ class ReversibleMPPI:
         ):
             raise ValueError("Expected pose[4] and commands[sample,time,2].")
         count = len(commands)
+        if self.settings.cost_backend == "native_free" and not return_paths:
+            from .native_nav import costs
+
+            result = costs(
+                pose,
+                commands,
+                target,
+                self.limits,
+                self.settings,
+                self.config.control_dt,
+            )
+            return result, np.ones(count, bool), np.full(count, self.steps), None
         paths = np.empty((self.steps + 1, count, 4), float)
         paths[0] = pose
         blocked = np.zeros((self.steps + 1, count), bool)
@@ -255,7 +274,7 @@ class ReversibleMPPI:
             candidates[:, 1:10] = controls[None, :, :]
             noise[:, :10] = candidates[:, :10] - self.nominal[:, None, :]
             costs, valid, prefixes, paths = self._rollout(
-                pose, np.swapaxes(candidates, 0, 1), target
+                pose, np.swapaxes(candidates, 0, 1), target, return_paths=diagnostics
             )
             if valid.any():
                 self.nominal, weights = raw_noise_update(
@@ -276,19 +295,20 @@ class ReversibleMPPI:
                 weights[selected] = 1
                 fallback = "longest_valid_prefix"
         final_cost, final_valid, _, final_path = self._rollout(
-            pose, self.nominal[None], target
+            pose, self.nominal[None], target, return_paths=diagnostics
         )
         if not final_valid[0] and valid.any():
             selected = int(np.argmin(np.where(valid, costs, np.inf)))
             self.nominal = candidates[:, selected].copy()
             final_cost, final_valid, _, final_path = self._rollout(
-                pose, self.nominal[None], target
+                pose, self.nominal[None], target, return_paths=diagnostics
             )
             fallback = "best_valid_sample"
         command = self.nominal[0].copy()
         self.last = {
             "controller": "cfree_uniform_mppi_numpy_adaptation",
             "sampler": self.settings.sampler,
+            "cost_backend": self.settings.cost_backend,
             "normal_noise_scale": self.sigma.tolist(),
             "log_noise_sigma": (
                 self.settings.log_noise_sigma

@@ -6,12 +6,12 @@ rollout. Otherwise a fixed terminal heuristic closes the bounded simulation.
 This is an approximate search evaluation, not an exact worst-response value.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import copy
 import time
 import numpy as np
 from .controllers import Baseline1, action_catalogue
-from .mcts import AdversarialUCT, UCTController, UCTSettings
+from .mcts import AdversarialUCT, UCTController, UCTSettings, SearchStep
 from .mppi import MPPISettings
 from .opponents import ReactiveEvader
 from .game import WorldMap, advance
@@ -24,6 +24,10 @@ class B2Settings:
     rollout_steps: int = 3
     exploration: float = 0.5
     max_seconds: float | None = None
+    tree_dt: float | None = None
+    rollout_cost_backend: str = "numpy"
+    bootstrap_at_dp: bool = True
+    root_selection: str = "worst_response_mean"
 
 
 class B2Controller:
@@ -50,6 +54,14 @@ class B2Controller:
     ):
         if settings.depth < 1 or settings.simulations < 1 or settings.rollout_steps < 0:
             raise ValueError("Invalid B2 search/rollout budget")
+        if settings.tree_dt is not None and (
+            not np.isfinite(settings.tree_dt) or settings.tree_dt < config.control_dt
+        ):
+            raise ValueError(
+                "Tree interval must be finite and at least the execution interval"
+            )
+        if settings.root_selection not in ("worst_response_mean", "most_visited"):
+            raise ValueError("Unknown root recommendation rule")
         self.config = config
         self.world = WorldMap(None) if world is None else world
         self.table = table
@@ -98,7 +110,9 @@ class B2Controller:
             self.table,
             mode="hybrid",
             seed=self.seed,
-            mppi_settings=base.tracker.settings,
+            mppi_settings=replace(
+                base.tracker.settings, cost_backend=self.settings.rollout_cost_backend
+            ),
             lookahead=base.lion.step_length,
             takeover="successor",
         )
@@ -130,9 +144,10 @@ class B2Controller:
             if policy.last["control_owner"].startswith("dp"):
                 if k == 0:
                     self.dp_frontiers[key] = True
-                self.rollout_endings["DP_takeover"] += 1
-                self.rollout_compute_seconds += time.perf_counter() - start
-                return elapsed + float(policy.last["dp"]["estimated_cost"])
+                if self.settings.bootstrap_at_dp:
+                    self.rollout_endings["DP_takeover"] += 1
+                    self.rollout_compute_seconds += time.perf_counter() - start
+                    return elapsed + float(policy.last["dp"]["estimated_cost"])
             v = evader.command(s, u)
             result = advance(s, u, v, self.config, world=self.world)
             elapsed += result.elapsed
@@ -150,6 +165,24 @@ class B2Controller:
         value = elapsed + self.adapter._leaf(s)
         self.rollout_compute_seconds += time.perf_counter() - start
         return value
+
+    def _transition(self, state, p_index, e_index):
+        duration = self.settings.tree_dt or self.config.control_dt
+        result = advance(
+            state,
+            self.adapter.P[p_index],
+            self.adapter.E[e_index],
+            self.config,
+            duration=duration,
+            world=self.world,
+        )
+        return SearchStep(
+            result.state,
+            result.elapsed
+            + (1000.0 if result.event == "pursuer_boundary_fault" else 0.0),
+            result.terminal,
+            result.event,
+        )
 
     def _tree_p_actions(self, state):
         # The real hierarchical controller commits to DP at these states.
@@ -190,7 +223,7 @@ class B2Controller:
             state.copy(),
             self._tree_p_actions,
             lambda s, p: tuple(range(len(self.adapter.E))),
-            self.adapter._transition,
+            self._transition,
             self._continuation,
             depth=self.settings.depth,
             exploration=self.settings.exploration,
@@ -227,7 +260,10 @@ class B2Controller:
         search["simulations"] += seeded
         search["root_initialization_simulations"] = seeded
         search["seconds"] = time.perf_counter() - begin
-        if not search["finite_tree_exhausted"]:
+        if (
+            not search["finite_tree_exhausted"]
+            and self.settings.root_selection == "worst_response_mean"
+        ):
             covered = [
                 r
                 for r in search["root_actions"]
@@ -245,6 +281,11 @@ class B2Controller:
         index = search["action"]
         command = proposal if index is None else self.adapter.P[index].copy()
         search.update(
+            root_selection_mode=self.settings.root_selection,
+            execution_dt=self.config.control_dt,
+            tree_dt=self.settings.tree_dt or self.config.control_dt,
+            deepest_tree_time=self.tree.deepest
+            * (self.settings.tree_dt or self.config.control_dt),
             rollout_calls=self.rollout_calls,
             rollout_b1_calls=self.rollout_b1_calls,
             rollout_motion_steps=self.rollout_motion_steps,
@@ -271,3 +312,64 @@ class B2Controller:
             self.last["tree"] = self.tree.snapshot()
             self.last["B1_proposal"] = copy.deepcopy(self.baseline.last)
         return command
+
+
+class AdaptiveB2Controller(B2Controller):
+    """Extend B1 continuations when the short search actually encounters DP.
+
+    The short search is a probe. If any of its B1 continuations reaches a DP
+    takeover, repeat the decision with longer B1 continuations from the SAME
+    root planner/RNG state. Otherwise retain the short decision. This is a
+    measured development variant, not a claim of optimal budget allocation.
+    """
+
+    mode = "b2_adaptive_handoff"
+
+    def __init__(self, *args, long_rollout_steps=40, **kwargs):
+        super().__init__(*args, **kwargs)
+        if long_rollout_steps < self.settings.rollout_steps:
+            raise ValueError("Long rollout cannot be shorter than the base rollout")
+        self.short_settings = self.settings
+        self.long_rollout_steps = int(long_rollout_steps)
+
+    def command(self, state, t=0.0, diagnostics=False):
+        begin = time.perf_counter()
+        if not self.ready:
+            self.reset(state)
+        self.settings = self.short_settings
+        nominal = self.baseline.tracker.nominal.copy()
+        planner_rng = copy.deepcopy(self.baseline.tracker.rng.bit_generator.state)
+        tree_rng = copy.deepcopy(self.rng.bit_generator.state)
+        lion = copy.deepcopy(self.baseline.lion)
+        action = super().command(state, t, diagnostics)
+        search = self.last.get("search", {})
+        triggered = (
+            self.last["control_owner"] == "uct_b1"
+            and search.get("rollout_endings", {}).get("DP_takeover", 0) > 0
+        )
+        if not triggered:
+            search["adaptive_long_rollout"] = False
+            search["total_simulations"] = search.get("simulations", 0)
+            self.last["seconds"] = time.perf_counter() - begin
+            return action
+        probe = copy.deepcopy(search)
+        self.baseline.tracker.nominal = nominal
+        self.baseline.tracker.rng.bit_generator.state = planner_rng
+        self.rng.bit_generator.state = tree_rng
+        self.baseline.lion = lion
+        self.settings = replace(
+            self.short_settings, rollout_steps=self.long_rollout_steps
+        )
+        action = super().command(state, t, diagnostics)
+        search = self.last["search"]
+        search.update(
+            adaptive_long_rollout=True,
+            prepass_simulations=probe["simulations"],
+            total_simulations=probe["simulations"] + search["simulations"],
+            total_rollout_b1_calls=probe["rollout_b1_calls"]
+            + search["rollout_b1_calls"],
+            short_selected_action=probe["root_selected_action"],
+            adaptive_trigger="a short B1 continuation reached DP takeover",
+        )
+        self.last["seconds"] = time.perf_counter() - begin
+        return action
