@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated 2026-10-29. This is a runnable research baseline, not a certified
+Updated 2026-10-30. This is a runnable research baseline, not a certified
 continuous-game solution or an onboard release.
 
 ## Current reversible-car implementation
@@ -17,17 +17,37 @@ Physical speed boundaries use inward derivatives; generic signed-distance ghost
 extrapolation is explicitly rejected by the standard world-table reader. Small
 independent numerical checks and analytic capture cases supplement solver parity.
 
-A first adversarial UCT implementation uses DP/signed-field leaf estimates. It is
-**not yet the planned B2 using B1 rollout continuations**. Cloning and PPO are not
-implemented for the revised model. No robot or Jetson result is claimed.
+The Oct 30 configuration `reversible_free_a3.json` uses equal acceleration limits
+of 3 m/s² and free space. B1 now evaluates successor actions even when its current
+state is unresolved; the old gate remains an explicit option. A bounded B2 UCT
+implementation now simulates B1 feedback continuations, with documented rollout
+initialization and heuristic truncation. The first 64-case comparison did not improve B1: 33 captures versus 36 for B1. A separate visit-count root rule is still under evaluation.
+The earlier DP-leaf prototype remains separate. Cloning and PPO are not yet
+implemented for the revised model; no robot or Jetson result is claimed.
 
-Current integrated check: 147 tests passed; two optional Torch reference checks
+Current integrated check: 164 tests passed; two optional Torch reference checks
 were skipped in the minimal test environment and passed separately in the Torch
 CPU environment. Some numerical-table feedback cases still fail their predicted
 capture deadline. Refinement and obstacle-transfer diagnostics document both successful captures
 and unresolved failures; successful computation is not a capture certificate.
 The fixed-map solver completed a four-second budget using a retained two-second
 prefix and an extension, with matching resumed/monolithic numerical tests.
+
+Current free-space evidence: approach-only and B1 each capture 36/64 predefined
+starts. Mean time with timeouts counted at 45 s is 28.57 s versus 28.39 s.
+The selected paired replay improves 30.22 to 27.67 s; both paths are identical
+until DP takes over at 22.80 s. All 28 B1 timeouts remain in approach mode.
+The fine 604-million-state table took 40.66 minutes to compute and occupies
+103.94 GB. See [the reproducible benchmark](free-space-benchmark.md).
+
+The optional native free-space MPPI cost backend preserves the objective and
+was checked against nine complete NumPy-reference B2 episodes with identical
+executed states. It reduces rollout cost, but B2 still exceeds the 50 ms control
+budget. Adaptive longer rollouts near DP did not improve aggregate captures.
+The updated viewer uses the table's declared dynamics, successor-based switching,
+fixed replay axes and lazy episode loading; all completed cases can be inspected.
+
+Earlier model/map evidence follows and is not mixed into the new free-space grid.
 
 Current B1 map evidence covers boundary-wall cases, not interior obstacles.
 The corrected six named square-wall starts produced six B1 captures and five

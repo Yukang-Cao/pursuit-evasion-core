@@ -6,19 +6,20 @@ Each action is `[acceleration, curvature]`, in m/s² and 1/m. Steering/curvature
 is directly commanded; signed speed changes continuously through acceleration.
 Yaw rate is signed speed times curvature, so a stopped car does not rotate.
 
-Current prototype parameters:
+Current free-space experiment (`configs/reversible_free_a3.json`):
 
 - P signed speed is in [-1, 2] m/s; E in [-0.5, 1] m/s.
 - Minimum turn radii are 1 m for P and 0.5 m for E.
-- Acceleration magnitude limits are 2 m/s² for P and 1 m/s² for E.
+- Acceleration magnitude limits are 3 m/s² for both players.
 - Both players update at 0.05 s. Capture radius is 0.3 m.
-- Point vehicles; the first wall fault loses, with P fault before capture before
-  E fault in numerical ties. An E fault is never counted as physical capture.
+- Point vehicles in open space: use `WorldMap(None)`. The current experiment has
+  no walls. In optional fixed-map experiments, first wall fault loses, with P
+  fault before capture before E fault in numerical ties.
 
-The P acceleration limit occurs in the user's earlier MPPI example; it is not a
-measured hardware calibration. The E limit scales with its speed limit, giving
-the same nominal zero-to-maximum time. The absolute P turn radius retains the
-previous reference scale. These choices are explicit provisional parameters.
+The equal acceleration bound is an explicit research setting, not a measured
+hardware calibration. The earlier `ReversibleConfig()` default retains P/E
+acceleration limits 2/1 m/s² for reproducing old records. Load the A3 configuration
+explicitly; metadata compatibility checks reject mismatched tables.
 Zero acceleration is admissible, including at zero speed; no separate parking
 controller is implemented. Excluding a parked interval would be another rule,
 not something silently imposed by the propagator.

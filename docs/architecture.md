@@ -1,4 +1,25 @@
-# Read the code in this order
+# Code map
+
+## Current reversible free-space experiment
+
+Start with [the reversible model](reversible-model.md), then
+[the reproducible benchmark](free-space-benchmark.md). The current entrypoint is
+`examples/chase_free.py`. The original fixed-speed CLI below is separate.
+
+1. `reversible/model.py` and `game.py`: signed-speed dynamics and capture events.
+2. `reversible/free_dp.py`, `gpu_free_dp.py`, `relative_table.py`: offline fields
+   and model-checked online queries. The GPU implementation is optional.
+3. `reversible/controllers.py`: successor-based B1 switch; `lion.py` and
+   `mppi.py`: geometric target and navigation tracking.
+4. `reversible/b2.py`: UCT with isolated B1 continuation simulations; `mcts.py`:
+   generic adversarial tree and the retained earlier DP-leaf prototype.
+5. `reversible/evaluation.py`: physical outcomes, controller phases and timings.
+6. `reversible/viewer.py` / `viewer.html`: interactive slices and recorded chases.
+
+The optional `native_nav.py`/`native_nav_cost.cpp` backend speeds up the unchanged
+free-space MPPI objective inside B2. It does not implement a different planner.
+
+## Earlier fixed-speed implementation
 
 Start with [the model](model.md), then use [setup](setup.md) for a small CPU
 run. Package paths below are relative to `src/pursuit_evasion/`.
@@ -43,8 +64,9 @@ Use absolute paths when invoking the package from another working directory.
 - `tests/`: small deterministic checks of shared contracts and behavior.
 - `docs/`: setup, numerical scope, code navigation and implementation status.
 
-UCT, cloning and PPO are planned, so no empty `search/` or `learning/` package is
-provided. Add a module when it has an implemented, tested responsibility.
+UCT is implemented in the reversible package. Cloning and PPO remain planned;
+no empty learning package is provided. Add a module when it has an implemented,
+tested responsibility.
 Generated fields, replays, datasets and reports belong in an explicit output
 directory outside Git. See [the migration boundary](migration.md).
 
