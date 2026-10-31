@@ -1,8 +1,8 @@
 # BARN contact-game experiment
 
 This is the revised finite-body experiment. It is separate from the earlier
-circle-capture, first-collision-loses pilots. The current execution is ongoing;
-completed checks and final benchmark results are tracked in docs/status.md.
+circle-capture, first-collision-loses pilots. The fixed BARN comparison is complete;
+checked results and limitations are tracked in docs/status.md.
 
 ## Physical model and local objective
 
@@ -186,3 +186,29 @@ only `meta.json` describing the physical game. No numerical value arrays or grid
 files are loaded. This path exactly reproduced a two-second learned-pair replay
 when tested with a metadata-only directory. The common full-map physical action
 check remains; this is table-free value inference, not a sensor-only safety claim.
+
+The present observation/query sampler places P close to the observation-frame
+origin (the measured training offsets are below about 0.32 m and 0.26 rad).
+That covers the one-step candidate queries used here. It does not establish
+accuracy for deeper MCTS leaf states far from the encoded root pose. Such use
+needs broader query training or a separately validated frame/encoding scheme.
+The image-extent check in the query API is a geometric-domain check, not an
+accuracy guarantee over every state inside the image.
+
+
+## Optional contact-cost approach
+
+The default handoff requires a finite worst-response capture time. The optional
+`chase(..., use_contact_cost=True)` / `--use-contact-cost` additionally executes
+the selected minmax contact-cost command when every continuing query is supported
+and its worst contact cost is below the local exit cost. This is an experimental
+approach heuristic; it is not a promise of capture. It leaves all dynamics,
+opponent choices, control timing, models and physical constraints unchanged.
+The returned trace distinguishes local finish, contact-cost approach and MPPI.
+The baseline gate remains the default because the broader rule improved the
+numerical reference on the tested cohort but reduced captures with learned and
+free-space values. See [the benchmark](barn-benchmark.md).
+
+`--observation memory` is the standard scan-memory input. `single` uses only the
+current scan; `ideal` supplies complete local geometry as an information
+ablation. An ideal input is not a sensor-only deployment result.

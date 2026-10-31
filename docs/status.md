@@ -3,25 +3,55 @@
 Updated 2026-10-31. This is a runnable research baseline, not a certified
 continuous-game solution or an onboard release.
 
-## BARN contact-game run in progress, Oct 31
+## BARN contact-game benchmark completed, Oct 31
 
-The new benchmark uses ten original BARN maps at twice their physical scale,
-with five predefined starts per map. Rectangular contact replaces circular
-capture. A common braking-feasible action constraint excludes obstacle contact;
-obstacle contacts are never credited as captures.
+Implemented body-centered LiDAR updates at 20 Hz, rectangular contact capture,
+compact eight-state map-specific DP supervision, supervised value models, and
+numerical/learned/free-space cross-play on ten held-out BARN maps × five starts.
+All 25 training/validation references and both training seeds completed on the
+laptop. No toros computation was used.
 
-Implemented and checked: finite-body geometry, continuous contact events,
-LiDAR memory and body-frame views, compact 8D Bellman updates, streamed history
-queries, and matched P/E capture-time extraction. All twenty training and five validation numerical references are complete. Five whole-chase
-validation starts captured without obstacle contact using the common route
-approach and numerical finish. These are development checks, not held-out
-performance. The first supervised value fit completed; the second training seed and final
-held-out cross-play are ongoing. No final test-performance claim is made yet.
+Against the same numerical E, approach-only captured 23/50; numerical P and
+map-conditioned learned P captured the same 32/50; a finer free-space value and
+a learned state/observed-clearance model each captured 39/50. The second map
+training seed captured 31/50. Better field fitting did not establish a chase
+advantage for the map encoder. Of the numerical and learned timeouts, 16/18 and
+17/18 respectively never entered local feedback.
 
-The reference retains all eight dynamic variables and omits illegal states
-or states outside the local separation domain. Tiling the output through RAM
-permits a finer grid on the laptop GPU. Independent small-game tests check the
-update. See [the contact-game contract](barn-contact-game.md).
+A separately fixed follow-up on 40 starts permits supported contact-cost
+approach when no finite capture estimate exists. Numerical P improves 27→30
+captures; learned P drops 27→23. The original switch remains the default; the
+alternative is exposed as `--use-contact-cost`. It is not a universally better
+controller or a guarantee. Both public flag settings exactly reproduce their
+recorded selected-case trajectories (253 and 401 states).
+
+The full experiment includes 650 primary, 200 follow-up and 100 extra cross-play
+runs. Reintegration verified all 178,858 recorded transitions and intermediate
+obstacle/terminal contact checks. CPU tests: 194 passed, seven optional tests
+skipped; four compact GPU-solver checks passed separately. Numerical reference
+regeneration matched original sampled labels and state graphs exactly. These
+checks establish implementation consistency, not continuous-game optimality.
+
+The production grid uses 0.30 m positions, 16 headings and seven speeds per car,
+with a 2 s local budget and 3 m separation limit. GPU core storage was 2.0–7.0 GB;
+successful training/validation references took 3.9–16.0 minutes each. The learned
+map weights occupy 1.18 MB. Quiet warm local decisions including scan processing
+and encoding had state-wise medians 6.9–9.7 ms over 14 checked laptop states.
+No Jetson timing or sensor-only deployment is claimed.
+
+All controllers currently share privileged exact-map physical action checks.
+The learned value receives scan images and a known-space mask; both learned
+players share P's local value observation. Full local geometry is a distinct
+ablation. No obstacle collision is credited as capture.
+
+Next recommended test: generate supervised query groups from the actual legal
+P/E control successors, then test preservation of their worst-response ordering
+with the controller held fixed. The present jitter sampler leaves unsampled speed
+bands reached by ordinary commands; that is a data weakness, not a proven cause
+of the observed control failures. Map-aware MCTS, imitation/PPO policies, noisy
+sensing and onboard validation remain unfinished. See
+[the contact-game contract](barn-contact-game.md) and
+[the benchmark protocol](barn-benchmark.md).
 
 ## Map-conditioned value pilot, Oct 30 evening
 

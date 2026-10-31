@@ -1,8 +1,10 @@
 """BARN chase wrapper with an explicit approach/local-finish handoff.
 
-P uses the local value only when a tested action has finite continuation times
-against every admissible E response. E uses the same time objective locally;
-outside the local domain both methods share route-guided navigation.
+P normally requires finite continuation times against every admissible E reply.
+The optional use_contact_cost mode also executes supported finite-budget contact
+cost guidance when time is unresolved. It is an experimental approach heuristic,
+not a capture guarantee. E uses the same time-first objective locally; outside
+the local domain both players share route-guided navigation.
 """
 
 import time
@@ -37,6 +39,7 @@ def chase(
     oracle_navigation=False,
     approach_only=False,
     audit_reference=False,
+    use_contact_cost=False,
 ):
     config = reference.config
     arena = reference.arena
@@ -105,7 +108,17 @@ def chase(
             finish = np.isfinite(wt[pi])
         else:
             finish = False
-        if finish:
+        local_progress = bool(
+            use_contact_cost
+            and not finish
+            and near
+            and not approach_only
+            and pvalid is not None
+            and pvalid[pi].all()
+            and np.isfinite(wm[pi])
+            and wm[pi] < radius - 1e-7
+        )
+        if finish or local_progress:
             pu = P[pi]
             p_mode = (
                 "learned finish"
@@ -116,7 +129,13 @@ def chase(
                     else "numerical finish"
                 )
             )
-            p_time = float(wt[pi])
+            if local_progress:
+                p_mode = (
+                    "learned local progress"
+                    if hasattr(p_source, "prepare")
+                    else "DP local progress"
+                )
+            p_time = float(wt[pi]) if np.isfinite(wt[pi]) else None
             if previous[0] == "approach":
                 handoffs.append(dict(t=t, state=s.tolist(), predicted_time=p_time))
         else:
@@ -144,7 +163,7 @@ def chase(
         e_predicted_time = None
         e_time_unresolved = None
         if local_e:
-            if finish and p_source is e_source:
+            if (finish or local_progress) and p_source is e_source:
                 et, em = pt[pi], pm[pi]
             else:
                 et, em, _ = costs(e_source, children, hits, dt, radius)
@@ -224,6 +243,12 @@ def chase(
                 e_capture_time_unresolved=e_time_unresolved,
                 waypoint=None if waypoint is None else waypoint.tolist(),
                 predicted_finish_time=p_time,
+                local_best_worst_contact_measure=(
+                    float(wm[pi]) if pt is not None else None
+                ),
+                local_value_supported=(
+                    bool(pvalid[pi].all()) if pvalid is not None else None
+                ),
                 p_safety_projection=p_override,
                 e_safety_projection=e_override,
                 p_supported_fraction=None if pvalid is None else float(pvalid.mean()),
@@ -257,6 +282,7 @@ def chase(
         p_source=getattr(p_source, "name", "numerical DP"),
         e_source=getattr(e_source, "name", "numerical DP"),
         value_observation=value_observation,
+        use_contact_cost=bool(use_contact_cost),
         navigation=(
             "observed-surface route-guided log-MPPI"
             if not oracle_navigation

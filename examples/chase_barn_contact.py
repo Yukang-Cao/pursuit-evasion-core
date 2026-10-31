@@ -31,6 +31,17 @@ def main():
         help="Load only game metadata; both players use the checkpoint, with no numerical arrays",
     )
     parser.add_argument("--approach-only", action="store_true")
+    parser.add_argument(
+        "--use-contact-cost",
+        action="store_true",
+        help="Also use supported contact-cost guidance when capture time is unresolved; experimental",
+    )
+    parser.add_argument(
+        "--observation",
+        choices=["memory", "single", "ideal"],
+        default="memory",
+        help="Value-network input; ideal supplies complete local geometry as a diagnostic",
+    )
     parser.add_argument("--max-time", type=float, default=20)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
@@ -69,6 +80,8 @@ def main():
         max_time=args.max_time,
         seed=args.seed,
         approach_only=args.approach_only,
+        use_contact_cost=args.use_contact_cost,
+        value_observation=args.observation,
     )
     result["numerical_table_loaded"] = not args.learned_only
     args.output.parent.mkdir(parents=True, exist_ok=True)
