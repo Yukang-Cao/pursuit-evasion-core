@@ -155,3 +155,25 @@ Primary comparisons are numerical P/numerical E, learned P/numerical E, and
 learned P/learned E. A rise in capture rate in the last pairing can mean E became
 weaker; it is not by itself evidence that learned P improved. Cross-play and
 shared-state action checks are needed to interpret the result.
+
+## Reproducing supervised value fitting
+
+After numerical reference generation, `examples/build_contact_observations.py`
+creates single-scan, accumulated-scan and ideal local-map inputs beside sampled
+labels. `examples/fit_contact_values.py --train ... --validation ... --output ...`
+trains the image model and a state/observed-clearance MLP on the same queries.
+These are supervised value models; no imitation or PPO is involved.
+
+`local_game/dataset.py` owns the observation/label pairing. `training.py` owns
+sampling, the weighted field loss, validation and atomic checkpoints. Whole
+physical maps must be disjoint between training and validation. Checkpoints
+are selected by accumulated-observation field error, not test chase outcomes.
+The model predicts a monotone curve over remaining-time budgets, beginning at
+the exact current rectangular-contact geometry. A first zero crossing yields
+an estimated capture time; no crossing means unresolved within the budget.
+
+Training mixes current scans, short accumulated scan histories and ideal local
+maps. The ideal input is explicitly tagged in evaluation; it is not silently
+supplied at deployment. Both models receive current contact geometry and
+clearance features computed from the observed image. Thus the no-image model
+is a state-and-clearance baseline, not a fully map-blind predictor.
