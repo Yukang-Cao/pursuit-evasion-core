@@ -172,8 +172,10 @@ The model predicts a monotone curve over remaining-time budgets, beginning at
 the exact current rectangular-contact geometry. A first zero crossing yields
 an estimated capture time; no crossing means unresolved within the budget.
 
-Training mixes current scans, short accumulated scan histories and ideal local
-maps. The ideal input is explicitly tagged in evaluation; it is not silently
+Training mixes current scans, synthetic short-memory inputs and ideal local
+maps. The synthetic memory combines the root scan with two visible scans from
+collision-free successor poses; it is not a recorded continuous round trip.
+Executed-controller memory instead accumulates its actual past scans. The ideal input is explicitly tagged in evaluation; it is not silently
 supplied at deployment. Both models receive current contact geometry and
 clearance features computed from the observed image. Thus the no-image model
 is a state-and-clearance baseline, not a fully map-blind predictor.

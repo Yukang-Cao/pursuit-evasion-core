@@ -141,6 +141,8 @@ def chase(
             )
             | np.isfinite(hits).any()
         )
+        e_predicted_time = None
+        e_time_unresolved = None
         if local_e:
             if finish and p_source is e_source:
                 et, em = pt[pi], pm[pi]
@@ -149,6 +151,8 @@ def chase(
                 et, em = et[0], em[0]
             ei = choose_e(et, em, E)
             eu = E[ei]
+            e_predicted_time = float(et[ei]) if np.isfinite(et[ei]) else None
+            e_time_unresolved = bool(not np.isfinite(et[ei]))
             e_mode = (
                 "learned response"
                 if hasattr(e_source, "prepare")
@@ -174,7 +178,13 @@ def chase(
             else:
                 rt, rm, _ = costs(reference, z, contact, dt, radius)
             rpi, _, rwt, _ = choose_p(rt, rm, P, E)
-            chosen_t, chosen_m, _ = costs(reference, children, hits, dt, radius)
+            chosen_t, chosen_m, chosen_valid = costs(
+                reference, children, hits, dt, radius
+            )
+            inside_replies = (
+                np.linalg.norm(children[..., :2] - children[..., 4:6], axis=-1)
+                <= radius
+            )
             rei = choose_e(chosen_t[0], chosen_m[0], E)
             worst = chosen_t[0, rei]
             actual_indices = np.flatnonzero(
@@ -185,6 +195,10 @@ def chase(
             )
             audit = dict(
                 reference_has_finish=bool(np.isfinite(rwt[rpi])),
+                reference_inside_reply_count=int(inside_replies.sum()),
+                reference_unsupported_inside_replies=int(
+                    (inside_replies & ~chosen_valid).sum()
+                ),
                 reference_best_time=float(rwt[rpi]) if np.isfinite(rwt[rpi]) else None,
                 reference_best_command=P[rpi].tolist(),
                 reference_time_after_chosen_P=(
@@ -206,6 +220,8 @@ def chase(
                 e_control=eu.tolist(),
                 p_mode=p_mode,
                 e_mode=e_mode,
+                e_predicted_capture_time=e_predicted_time,
+                e_capture_time_unresolved=e_time_unresolved,
                 waypoint=None if waypoint is None else waypoint.tolist(),
                 predicted_finish_time=p_time,
                 p_safety_projection=p_override,

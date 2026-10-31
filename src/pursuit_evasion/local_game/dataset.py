@@ -18,9 +18,10 @@ from ..reversible.model import ReversibleConfig
 def build_observations(folder, settings=SensorSettings()):
     """Write single-scan, accumulated-scan and ideal-map inputs beside labels.
 
-    The accumulated input uses two collision-free excursions from a stopped
-    observation pose, then returns to the original pose. It is a small training
-    approximation to a sensor history; it does not reveal hidden map cells.
+    The accumulated input combines the root scan with two scans at collision-free
+    successor poses from a stopped root. This is synthetic short-memory
+    augmentation, not a recorded continuous round trip. Every added cell is
+    visible from one of those scan poses; runtime memory uses the actual chase.
     """
     folder = Path(folder)
     meta = json.loads((folder / "meta.json").read_text())
@@ -97,7 +98,7 @@ def build_observations(folder, settings=SensorSettings()):
         version=2,
         sensor=settings.__dict__,
         seconds=time.perf_counter() - started,
-        input_scope="Single noiseless scan and accumulated scans from two collision-free reversible excursions; no full-map geometry copied into observed inputs; ideal SDF separate",
+        input_scope="Single noiseless scan and synthetic short memory from two collision-free successor scan poses; not a recorded round trip; no full-map geometry copied into observed inputs; ideal SDF separate",
         scalar_clearance="15-point rectangular stencil in the observed SDF, not privileged physical clearance",
     )
     (folder / "observations_meta.json").write_text(json.dumps(summary, indent=2))
