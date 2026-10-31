@@ -19,6 +19,23 @@ Start with [the reversible model](reversible-model.md), then
 The optional `native_nav.py`/`native_nav_cost.cpp` backend speeds up the unchanged
 free-space MPPI objective inside B2. It does not implement a different planner.
 
+## Map-conditioned footprint-game pilot
+
+See [the model and reproduction guide](map-conditioned-value.md).
+
+1. reversible/footprint_map.py: oriented footprints, map clearances and events.
+2. reversible/gpu_map_game.py: offline 8D HJI labels and optional signed histories.
+3. reversible/map_game_field.py: numerical field and first-crossing time queries.
+4. reversible/planning_frame.py: consistent transforms of both cars and the map.
+5. reversible/map_value.py: optional Torch spatial encoder and scalar query head.
+6. reversible/neural_map_field.py: cached map features, checkpoint contracts and
+   table-free neural queries.
+7. reversible/map_game_policy.py: local one-step minimax extraction for diagnosis.
+
+The examples generate labels, fit paired map/no-image models, query without a
+reference table, and replay a local chase. This is a new obstacle-conditioned
+local-value pilot; it does not silently replace the existing free-space B1/B2.
+
 ## Earlier fixed-speed implementation
 
 Start with [the model](model.md), then use [setup](setup.md) for a small CPU

@@ -7,6 +7,12 @@ outside the repository.
 
 ## Start here
 
+The current [map-conditioned value pilot](docs/map-conditioned-value.md) adds
+oriented footprints, an eight-dimensional GPU HJI reference, fixed-frame
+coordinate transforms, and a compact map encoder/value-query network.
+It is a controlled feasibility study; the output is a signed local game value,
+and a reliable control advantage is not yet established.
+
 The Oct 30 free-space experiment uses `configs/reversible_free_a3.json`: both
 acceleration limits are 3 m/s². Pass that explicit configuration when recomputing
 tables; the older default model and its records remain available.

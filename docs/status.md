@@ -3,6 +3,40 @@
 Updated 2026-10-30. This is a runnable research baseline, not a certified
 continuous-game solution or an onboard release.
 
+## Map-conditioned value pilot, Oct 30 evening
+
+Implemented explicit rectangular footprints and an 8D GPU HJI reference on a
+22-map room/doorway family, with A3 reversible dynamics and 0.5 m capture radius.
+P is 0.80 × 0.50 m; E is provisionally 0.40 × 0.25 m. The first-collision-loses
+rule is retained and physical captures are counted separately from E collisions.
+The coarse 262-million-state, two-second reference took about 26 s and 3.14 GB
+core GPU memory per map on the current laptop.
+
+A supervised map encoder + interpolated spatial features + query MLP learns
+signed finite-budget P-success values. Eight queried vehicle coordinates remain
+in one fixed planning frame. No dense 8D output grid is built online. A
+separate translated/rotated-frame augmentation check reused physical labels.
+
+Map features improved held-out value fitting in two seeds. The final 28-start
+local controller tests did not establish a capture benefit: reference and map
+network each captured 27/28 with one E collision, while the no-image MLP captured
+27/28 and 28/28 across seeds. Earlier fixed-budget signed-margin selection
+results are preserved but are not used as a superior-control claim.
+
+The public label, training, table-free query and local-chase examples ran.
+The public chase reproduced its recorded trajectory exactly. Reintegrating all
+264 development/final episodes matched all 4,865 recorded transitions and events.
+The full installed-package suite passed 180 tests with three CUDA tests skipped;
+the CUDA footprint/history group separately passed nine tests. These are consistency
+checks, not independent physical or optimality proofs.
+
+Still unimplemented: a partial-observation/crop-exit game definition, global
+hierarchy integration of the new local network, sensor-noise tests, a systematic
+free-space-value-plus-collision baseline, and Jetson deployment. No toros job
+was run. B3 imitation/PPO and B4 remain separate unfinished deliverables; this
+supervised value pilot is not completion of those policy-learning baselines.
+See [map-conditioned-value.md](map-conditioned-value.md).
+
 ## Current reversible-car implementation
 
 The `reversible/` package now includes acceleration-limited signed-speed dynamics,
@@ -127,7 +161,7 @@ replays supply checks, not a capture certificate.
 
 For this earlier fixed-speed version, the original B2/B3/B4 pipeline was not completed.
 The revised-model 8D solver and DP-leaf UCT prototype are described above. Exported demonstrations are not a trained
-student. Map-conditioned learning remains deferred.
+student. Map-conditioned learning was subsequently implemented in the separate pilot above; it is not integrated into these older baselines.
 
 Jetson Orin at at least 10 Hz is the online target. No Orin performance has been
 measured. The exact device, RAM, power mode, table storage and complete-cycle

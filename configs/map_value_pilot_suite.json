@@ -1,0 +1,682 @@
+{
+  "config": {
+    "name": "reversible_free_a3",
+    "pursuer": {
+      "speed_min": -1.0,
+      "speed_max": 2.0,
+      "acceleration": 3.0,
+      "max_curvature": 1.0
+    },
+    "evader": {
+      "speed_min": -0.5,
+      "speed_max": 1.0,
+      "acceleration": 3.0,
+      "max_curvature": 2.0
+    },
+    "capture_radius": 0.5,
+    "control_dt": 0.05,
+    "arena_half_width": 2.5,
+    "boundary_rule": "first_fault_loses",
+    "point_vehicles": false
+  },
+  "grid": {
+    "positions": 17,
+    "headings": 8,
+    "p_speeds": 7,
+    "e_speeds": 7,
+    "extent": 3
+  },
+  "horizon": 2,
+  "output_dt": 0.5,
+  "query_count_per_map": 48000,
+  "maps": [
+    {
+      "id": "empty",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_01",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -0.62,
+            -0.38,
+            -2.5,
+            -0.3
+          ],
+          [
+            -0.62,
+            -0.38,
+            0.3,
+            2.5
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_02",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -0.62,
+            -0.38,
+            -2.5,
+            -1.0
+          ],
+          [
+            -0.62,
+            -0.38,
+            0.0,
+            2.5
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_03",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -0.62,
+            -0.38,
+            -2.5,
+            -1.2
+          ],
+          [
+            -0.62,
+            -0.38,
+            0.19999999999999996,
+            2.5
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_04",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            0.38,
+            0.62,
+            -2.5,
+            -0.3
+          ],
+          [
+            0.38,
+            0.62,
+            0.3,
+            2.5
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_05",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            0.38,
+            0.62,
+            -2.5,
+            0.0
+          ],
+          [
+            0.38,
+            0.62,
+            1.0,
+            2.5
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_06",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            0.38,
+            0.62,
+            -2.5,
+            -0.19999999999999996
+          ],
+          [
+            0.38,
+            0.62,
+            1.2,
+            2.5
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_07",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -2.5,
+            -0.3,
+            -0.62,
+            -0.38
+          ],
+          [
+            0.3,
+            2.5,
+            -0.62,
+            -0.38
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_08",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -2.5,
+            -1.0,
+            -0.62,
+            -0.38
+          ],
+          [
+            0.0,
+            2.5,
+            -0.62,
+            -0.38
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_09",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -2.5,
+            -1.2,
+            -0.62,
+            -0.38
+          ],
+          [
+            0.19999999999999996,
+            2.5,
+            -0.62,
+            -0.38
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_10",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -2.5,
+            -0.3,
+            0.38,
+            0.62
+          ],
+          [
+            0.3,
+            2.5,
+            0.38,
+            0.62
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_11",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -2.5,
+            0.0,
+            0.38,
+            0.62
+          ],
+          [
+            1.0,
+            2.5,
+            0.38,
+            0.62
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "train_12",
+      "split": "train",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -2.5,
+            -0.19999999999999996,
+            0.38,
+            0.62
+          ],
+          [
+            1.2,
+            2.5,
+            0.38,
+            0.62
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "val_13",
+      "split": "validation",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -0.12,
+            0.12,
+            -2.5,
+            -0.4
+          ],
+          [
+            -0.12,
+            0.12,
+            0.4,
+            2.5
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "val_14",
+      "split": "validation",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -0.12,
+            0.12,
+            -2.5,
+            -0.6
+          ],
+          [
+            -0.12,
+            0.12,
+            0.6,
+            2.5
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "val_15",
+      "split": "validation",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -2.5,
+            -0.4,
+            -0.12,
+            0.12
+          ],
+          [
+            0.4,
+            2.5,
+            -0.12,
+            0.12
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "val_16",
+      "split": "validation",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -2.5,
+            -0.6,
+            -0.12,
+            0.12
+          ],
+          [
+            0.6,
+            2.5,
+            -0.12,
+            0.12
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "test_17",
+      "split": "test",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -0.37,
+            -0.13,
+            -2.5,
+            -1.45
+          ],
+          [
+            -0.37,
+            -0.13,
+            -0.55,
+            2.5
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "test_18",
+      "split": "test",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            0.13,
+            0.37,
+            -2.5,
+            0.35
+          ],
+          [
+            0.13,
+            0.37,
+            1.65,
+            2.5
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "test_19",
+      "split": "test",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -2.5,
+            -1.45,
+            -0.37,
+            -0.13
+          ],
+          [
+            -0.55,
+            2.5,
+            -0.37,
+            -0.13
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "test_20",
+      "split": "test",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -2.5,
+            0.35,
+            0.13,
+            0.37
+          ],
+          [
+            1.65,
+            2.5,
+            0.13,
+            0.37
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    },
+    {
+      "id": "ood_corner",
+      "split": "ood",
+      "geometry": {
+        "half_width": 2.5,
+        "obstacles": [
+          [
+            -0.15,
+            0.15,
+            -1.7,
+            0.7
+          ],
+          [
+            -0.15,
+            1.5,
+            0.5,
+            0.75
+          ]
+        ],
+        "pursuer": {
+          "length": 0.8,
+          "width": 0.5
+        },
+        "evader": {
+          "length": 0.4,
+          "width": 0.25
+        },
+        "pose_reference": "rectangle_center"
+      }
+    }
+  ],
+  "scope": "Controlled doorway family; provisional E footprint0.40x0.25m; first-collision-loses local game. Signed P-success value, not pure capture time."
+}
