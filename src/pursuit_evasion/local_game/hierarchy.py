@@ -289,6 +289,10 @@ def chase(
             else "full-map navigation diagnostic"
         ),
         safety="shared privileged physical braking feasibility; obstacle contacts are failures, never captures",
-        model_scope="local expert2s/range3m, common approach otherwise; exact joint state; static-map noiseless LiDAR",
+        model_scope=(
+            f"local P continuation budget {float(p_source.times[-1]):g}s, "
+            f"E budget {float(e_source.times[-1]):g}s, separation limit {radius:g}m; "
+            "common approach otherwise; exact joint state; static-map noiseless LiDAR"
+        ),
         process_seconds=time.perf_counter() - started,
     )
