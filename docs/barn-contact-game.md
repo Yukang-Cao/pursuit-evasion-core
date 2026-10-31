@@ -232,3 +232,10 @@ loss function. It does not by itself establish a performance improvement.
 The public sampler exactly matched all query, label, command and observation
 arrays from the checked experiment implementation on 49,152 queries. Those
 code-extraction check data were not used for training.
+
+Training outputs now fingerprint the exact label/observation files and the
+training settings. A completed or interrupted run cannot silently be reused
+with changed supervision under the same folder names. Older checkpoints remain
+loadable for inference; refitting an older run without an input fingerprint
+requires a new output directory. This guard does not change the training loss
+or any completed model weights.

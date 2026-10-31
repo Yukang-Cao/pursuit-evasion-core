@@ -9,10 +9,31 @@ from types import SimpleNamespace
 import json
 import time
 import os
+import hashlib
 import numpy as np
 import torch
 from .learning import ContactValueNet
 from ..reversible.map_game_field import first_crossing
+
+
+def training_input_contract(paths, settings):
+    """Identify the actual supervised arrays, not only similarly named folders."""
+    files = {}
+    for split, folders in paths.items():
+        files[split] = []
+        for folder in folders:
+            folder = Path(folder)
+            digests = {}
+            for name in ["labels.npz", "observations.npz"]:
+                digest = hashlib.sha256()
+                with (folder / name).open("rb") as stream:
+                    for block in iter(lambda: stream.read(8 * 1024 * 1024), b""):
+                        digest.update(block)
+                digests[name] = digest.hexdigest()
+            files[split].append({"folder_name": folder.name, **digests})
+    payload = {"protocol": "contact_fields_v1", "settings": settings, "files": files}
+    signature = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+    return signature, payload
 
 
 def fit_contact_values(
@@ -78,12 +99,29 @@ def fit_contact_values(
         raise ValueError("Whole maps must be separated between training and validation")
     out = Path(output)
     out.mkdir(parents=True, exist_ok=True)
+    signature, input_contract = training_input_contract(
+        paths,
+        {
+            "steps": steps,
+            "seed": seed,
+            "hidden": hidden,
+            "channels": channels,
+            "physics": config,
+            "times": first_meta["times"],
+            "footprints": footprints,
+            "extent": extent,
+            "exit_radius": first_meta["spec"]["exit_radius"],
+        },
+    )
     if (out / "meta.json").exists():
         previous = json.loads((out / "meta.json").read_text())
+        if previous.get("input_signature") != signature:
+            raise ValueError(
+                "Existing training output has different or unverified input data/settings; "
+                "use a new output directory"
+            )
         if previous.get("status") == "complete":
-            if previous["steps"] == steps and previous["seed"] == seed:
-                return previous
-            raise ValueError("Completed output belongs to another training request")
+            return previous
     torch.set_num_threads(4)
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
@@ -150,6 +188,8 @@ def fit_contact_values(
     }
     meta = dict(
         status="running",
+        input_signature=signature,
+        input_contract=input_contract,
         seed=args.seed,
         steps=args.steps,
         hidden=args.hidden,

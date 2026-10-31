@@ -73,6 +73,18 @@ def test_fit_checkpoint_runs_without_reference_at_inference(tmp_path):
     assert fields.shape == (9, 1) and valid.all()
     assert np.all(np.diff(fields[:, 0]) <= 1e-7)
     assert fields[0, 0] == pytest.approx(0.4)
+    # Reusing a path must not silently return weights fitted to different labels.
+    same = fit_contact_values(
+        [train], [validation], out, steps=2, hidden=16, channels=4, device="cpu"
+    )
+    assert same["input_signature"] == result["input_signature"]
+    labels = np.load(train / "labels.npz")["values"]
+    labels[1:, 0] -= 0.1
+    np.savez(train / "labels.npz", values=labels)
+    with pytest.raises(ValueError, match="input data/settings"):
+        fit_contact_values(
+            [train], [validation], out, steps=2, hidden=16, channels=4, device="cpu"
+        )
     # Duplicate geometry under another directory must not leak across splits.
     metadata = json.loads((validation / "meta.json").read_text())
     metadata["spec"]["arena"]["source"]["sha256"] = "train-map"
