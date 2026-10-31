@@ -200,7 +200,7 @@ accuracy guarantee over every state inside the image.
 
 The default handoff requires a finite worst-response capture time. The optional
 `chase(..., use_contact_cost=True)` / `--use-contact-cost` additionally executes
-the selected minmax contact-cost command when every continuing query is supported
+the selected minmax contact-cost command when every selected-command successor query is supported
 and its worst contact cost is below the local exit cost. This is an experimental
 approach heuristic; it is not a promise of capture. It leaves all dynamics,
 opponent choices, control timing, models and physical constraints unchanged.
@@ -239,3 +239,12 @@ with changed supervision under the same folder names. Older checkpoints remain
 loadable for inference; refitting an older run without an input fingerprint
 requires a new output directory. This guard does not change the training loss
 or any completed model weights.
+
+
+Reference auditing separates unavailable continuing values from branches that
+already terminate in contact or a declared local exit. The optional log field
+`reference_actual_E_query_available` records availability for E's executed
+command; an unavailable capture-time estimate alone does not imply a missing
+field query. In the primary BARN run, one common starting configuration reached
+an unavailable numerical E query for one control interval. Excluding that start
+from all primary methods leaves the same performance ordering.

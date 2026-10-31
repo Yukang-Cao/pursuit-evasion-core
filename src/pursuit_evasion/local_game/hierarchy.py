@@ -218,6 +218,18 @@ def chase(
                 reference_unsupported_inside_replies=int(
                     (inside_replies & ~chosen_valid).sum()
                 ),
+                reference_unsupported_continuing_replies=int(
+                    (inside_replies & ~chosen_valid & ~np.isfinite(hits)).sum()
+                ),
+                reference_actual_E_query_available=(
+                    bool(
+                        not inside_replies[0, actual_indices[0]]
+                        or np.isfinite(hits[0, actual_indices[0]])
+                        or chosen_valid[0, actual_indices[0]]
+                    )
+                    if len(actual_indices)
+                    else None
+                ),
                 reference_best_time=float(rwt[rpi]) if np.isfinite(rwt[rpi]) else None,
                 reference_best_command=P[rpi].tolist(),
                 reference_time_after_chosen_P=(
