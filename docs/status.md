@@ -5,27 +5,26 @@ continuous-game solution or an onboard release.
 
 ## BARN contact-game run in progress, Oct 31
 
-A new dataset benchmark is being built on ten original BARN maps at 2×scale,
-with five predefined starts per map. Rectangular contact replaces the circular
-capture abstraction. Obstacle contacts are excluded by a common braking-feasible
-action constraint and are never credited as captures.
+The new benchmark uses ten original BARN maps at twice their physical scale,
+with five predefined starts per map. Rectangular contact replaces circular
+capture. A common braking-feasible action constraint excludes obstacle contact;
+obstacle contacts are never credited as captures.
 
 Implemented and checked: finite-body geometry, continuous contact events,
-LiDAR memory/body-frame views, compact 8D Bellman reference updates, streaming
-history queries, and matched P/E capture-time extraction. The first references
-and validation replays completed. Neural training and final cross-play results
-are still pending; do not present them as finished.
+LiDAR memory and body-frame views, compact 8D Bellman updates, streamed history
+queries, and matched P/E capture-time extraction. The first references and
+validation replays completed. Neural training and final cross-play results are
+still pending; do not present them as finished.
 
-The compact reference retains all eight dynamic variables and removes invalid
-or out-of-local-domain configurations. A CPU-tiled output permits a finer state
-grid on the 8 GB laptop GPU. Small independent action-enumeration tests validate
-its update. This is a local constrained game, not a global optimality certificate.
-See [the contact-game contract](barn-contact-game.md).
+The reference retains all eight dynamic variables and omits illegal states
+or states outside the local separation domain. Tiling the output through RAM
+permits a finer grid on the laptop GPU. Independent small-game tests check the
+update. See [the contact-game contract](barn-contact-game.md).
 
 ## Map-conditioned value pilot, Oct 30 evening
 
 Implemented explicit rectangular footprints and an 8D GPU HJI reference on a
-22-map room/doorway family, with A 3 reversible dynamics and 0.5 m capture radius.
+22-map room/doorway family, with A3 reversible dynamics and 0.5 m capture radius.
 P is 0.80 × 0.50 m; E is provisionally 0.40 × 0.25 m. The first-collision-loses
 rule is retained and physical captures are counted separately from E collisions.
 The coarse 262-million-state, two-second reference took about 26 s and 3.14 GB
@@ -53,7 +52,7 @@ checks, not independent physical or optimality proofs.
 Still unimplemented: a partial-observation/crop-exit game definition, global
 hierarchy integration of the new local network, sensor-noise tests, a broad
 obstacle-game benchmark, and Jetson deployment. No toros job
-was run. B 3 imitation and B 4 PPO remain separate unfinished deliverables; this
+was run. B3 imitation and B4 PPO remain separate unfinished deliverables; this
 supervised value pilot is not completion of those policy-learning baselines.
 See [map-conditioned-value.md](map-conditioned-value.md).
 
@@ -61,7 +60,7 @@ See [map-conditioned-value.md](map-conditioned-value.md).
 
 The `reversible/` package now includes acceleration-limited signed-speed dynamics,
 continuous event handling, a documented adaptation of the existing C-Free-Uniform
-MPPI routines, a lion-guided B 1 controller, and declared reactive opponents.
+MPPI routines, a lion-guided B1 controller, and declared reactive opponents.
 Targets and both players' commands update every 0.05 s. The legacy turning-circle
 filter and steering-effort penalty are absent from this tracker.
 
@@ -71,11 +70,11 @@ Physical speed boundaries use inward derivatives; generic signed-distance ghost
 extrapolation is explicitly rejected by the standard world-table reader. Small
 independent numerical checks and analytic capture cases supplement solver parity.
 
-The Oct 30 configuration `reversible_free_a 3.json` uses equal acceleration limits
-of 3 m/s² and free space. B 1 now evaluates successor actions even when its current
-state is unresolved; the old gate remains an explicit option. A bounded B 2 UCT
-implementation now simulates B 1 feedback continuations, with documented rollout
-initialization and heuristic truncation. The first 64-case comparison did not improve B 1: 33 captures versus 36 for B 1. The completed visit-count root variant captured 32/64; conditional longer B 1 continuations captured 33/64. None improved the 36/64 B 1 capture count.
+The Oct 30 configuration `reversible_free_a3.json` uses equal acceleration limits
+of 3 m/s² and free space. B1 now evaluates successor actions even when its current
+state is unresolved; the old gate remains an explicit option. A bounded B2 UCT
+implementation now simulates B1 feedback continuations, with documented rollout
+initialization and heuristic truncation. The first 64-case comparison did not improve B1: 33 captures versus 36 for B1. The completed visit-count root variant captured 32/64; conditional longer B1 continuations captured 33/64. None improved the 36/64 B1 capture count.
 The earlier DP-leaf prototype remains separate. Cloning and PPO are not yet
 implemented for the revised model; no robot or Jetson result is claimed.
 
@@ -87,20 +86,20 @@ and unresolved failures; successful computation is not a capture certificate.
 The fixed-map solver completed a four-second budget using a retained two-second
 prefix and an extension, with matching resumed/monolithic numerical tests.
 
-Current free-space evidence: approach-only and B 1 each capture 36/64 predefined
+Current free-space evidence: approach-only and B1 each capture 36/64 predefined
 starts. Mean time with timeouts counted at 45 s is 28.57 s versus 28.39 s.
 The selected paired replay improves 30.22 to 27.67 s; both paths are identical
-until DP takes over at 22.80 s. All 28 B 1 timeouts remain in approach mode.
+until DP takes over at 22.80 s. All 28 B1 timeouts remain in approach mode.
 The fine 604-million-state table took 40.66 minutes to compute and occupies
 103.94 GB. See [the reproducible benchmark](free-space-benchmark.md).
 
 The optional native free-space MPPI cost backend preserves the objective and
-was checked against nine complete NumPy-reference B 2 episodes with identical
-executed states. It reduces rollout cost, but B 2 still exceeds the 50 ms control
+was checked against nine complete NumPy-reference B2 episodes with identical
+executed states. It reduces rollout cost, but B2 still exceeds the 50 ms control
 budget. Adaptive longer rollouts near DP did not improve aggregate captures.
-Warm serial laptop calls measured median / 95 th percentile: one value lookup
-0.110 / 0.449 ms; B 1 approach 6.278 / 6.358 ms; B 1 DP 0.590 / 0.622 ms;
-B 2 far-state search 906.17 / 916.72 ms. These are repeated fixed-state calls,
+Warm serial laptop calls measured median / 95th percentile: one value lookup
+0.110 / 0.449 ms; B1 approach 6.278 / 6.358 ms; B1 DP 0.590 / 0.622 ms;
+B2 far-state search 906.17 / 916.72 ms. These are repeated fixed-state calls,
 not Jetson measurements or an end-to-end latency guarantee.
 
 The updated viewer uses the table's declared dynamics, successor-based switching,
@@ -108,14 +107,14 @@ fixed replay axes and lazy episode loading; all completed cases can be inspected
 
 Earlier model/map evidence follows and is not mixed into the new free-space grid.
 
-Current B 1 map evidence covers boundary-wall cases, not interior obstacles.
-The corrected six named square-wall starts produced six B 1 captures and five
-approach-only captures against a declared reactive heuristic E. B 1 is not faster
+Current B1 map evidence covers boundary-wall cases, not interior obstacles.
+The corrected six named square-wall starts produced six B1 captures and five
+approach-only captures against a declared reactive heuristic E. B1 is not faster
 in every case. The separate scripted-E stall and log-MPPI repair are development
-diagnostics. See [the B 1 rule and validation scope](reversible-b 1.md).
+diagnostics. See [the B1 rule and validation scope](reversible-b1.md).
 
 The [numerical exclusion diagnostic](reversible-analytic-check.md) is preserved
-for later inspection. It is not the main B 1 deliverable or the current research
+for later inspection. It is not the main B1 deliverable or the current research
 focus; further numerical repair is deferred.
 
 See [the reversible model](reversible-model.md) and the per-module documents linked
@@ -132,7 +131,7 @@ The reversible tracker also offers a signed normal-times-lognormal sampler.
 The declared high-variance configuration escaped the selected near-wall Gaussian
 stall and captured in three tested seeds; the opponent was the same fixed script.
 This is a case-specific workaround, not evidence of general adversarial success.
-New B 1 instances default to the tested log sampler. The explicit Gaussian setting
+New B1 instances default to the tested log sampler. The explicit Gaussian setting
 and previous recordings are preserved.
 
 ## Earlier fixed-speed implementation (retained)
@@ -159,8 +158,8 @@ samples with 32 headings per vehicle, each at a two-second horizon. Retained
 fields are local research artifacts, not repository fixtures. Larger execution
 does not by itself establish numerical convergence.
 
-A development cohort compared B 1 and the approach-only ablation on four named
-starts and three seeds each. B 1 physically captured in 9/12 episodes; the
+A development cohort compared B1 and the approach-only ablation on four named
+starts and three seeds each. B1 physically captured in 9/12 episodes; the
 ablation captured in 4/12. The other episodes timed out, including every
 `side` case for both methods. Some accepted DP finishes were abandoned before
 capture. These are diagnostic observations against one heuristic opponent,
@@ -179,7 +178,7 @@ unconditionally physical capture time. Continuous PDE controls and sampled
 executed controls also differ. Field comparisons, refinement and controller
 replays supply checks, not a capture certificate.
 
-For this earlier fixed-speed version, the original B 2/B 3/B 4 pipeline was not completed.
+For this earlier fixed-speed version, the original B2/B3/B4 pipeline was not completed.
 The revised-model 8D solver and DP-leaf UCT prototype are described above. Exported demonstrations are not a trained
 student. Map-conditioned learning was subsequently implemented in the separate pilot above; it is not integrated into these older baselines.
 
