@@ -119,3 +119,27 @@ sensor noise are not modeled. No Jetson result is claimed.
 
 The data and examples support a repeatable research comparison. They do not yet
 establish a map-encoder performance advantage or an RSS-level contribution.
+
+
+## Additional completed diagnostics
+
+A query-distribution test changed five training maps, with the same images,
+query count, architecture, field loss, 80,000 steps and seed. Original-switch
+captures stayed 32/50; contact-cost-approach captures stayed 23/40, with three
+gains and three losses. This was post-hoc reuse of the known benchmark; no test
+map supplied training labels.
+
+On BARN0, extending map P from a 2 s to 4 s numerical budget changed captures
+3/5→2/5 against E2, and 5/5→5/5 against E4. Changing E alone therefore explains
+the diagonal improvement. The free-space P2 comparator captured all five
+against both E policies. The matched free-space P4 comparator captured 3/5 and
+4/5. No general ranking of opponent strength follows from these five cases.
+Both numerical families preserve their original two-second prefixes. The
+numerical-budget change does not change MPPI's two-second planning horizon.
+
+A local numerical feedback stall has finite predicted times near one second
+but no capture by 20 s. A same-state one-step check shows a time-value mismatch
+comparable to the 0.05 s control interval. Countdown field control also failed
+in a separate two-second check from that state. These observations motivate
+checking the reference's value-to-control interface; they do not establish
+which approximation is responsible or a general failure of DP.

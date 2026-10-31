@@ -1,7 +1,8 @@
 """Optional PyTorch map-conditioned game-value query model.
 
-The map is encoded once in a fixed planning frame. BOTH queried car poses
-remain in that frame. This is an 8-state query, not an 8-dimensional output grid.
+The map is encoded once for a set of queries. BOTH queried car poses remain
+in that frame. The current BARN wrapper recenters the map at every control
+update; the older pilot below used a fixed frame. This is an 8-state query, not an 8-dimensional output grid.
 The scalar target is a signed finite-budget game value, not capture seconds.
 """
 

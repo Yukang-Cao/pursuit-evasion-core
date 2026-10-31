@@ -44,12 +44,40 @@ The learned value receives scan images and a known-space mask; both learned
 players share P's local value observation. Full local geometry is a distinct
 ablation. No obstacle collision is credited as capture.
 
-Next recommended test: generate supervised query groups from the actual legal
-P/E control successors, then test preservation of their worst-response ordering
-with the controller held fixed. The present jitter sampler leaves unsampled speed
-bands reached by ordinary commands; that is a data weakness, not a proven cause
-of the observed control failures. Map-aware MCTS, imitation/PPO policies, noisy
-sensing and onboard validation remain unfinished. See
+A bounded successor-query data test is complete. It replaced 245,760 queries
+on five training maps with legal continuous control successors while preserving
+images, total query count, architecture, loss, 80,000 steps and seed 0. Captures
+remained 32/50 under the original switch and 23/40 under contact-cost approach.
+The latter gained three and lost three captures. Initial-control-query field
+MAE improved 0.0876→0.0801 m without a capture-count improvement. The selected
+BARN100 local failure still brakes initially and still times out. This is a
+baseline-quality diagnostic, not a proposed contribution.
+
+A selected BARN0 numerical-budget check also completed. Against the fixed E2
+policy, map P2 captures 3/5 and map P4 2/5. Against E4, both capture 5/5. The
+free-space P2 baseline captures 5/5 against either E, while free-space P4 captures
+3/5 and 4/5. Thus the diagonal P4/E4 improvement cannot be credited to P.
+The longer map solve took 28.3 minutes and 5.88 GB core GPU storage. Its 2 s
+prefix matches the original labels/graphs; the free-space prefix is byte-identical.
+All ten original map/free P2 trajectories against E2 reproduced exactly.
+
+The complete comparison set now contains 1,090 recordings and 206,619 checked
+control intervals. The additional four local extraction checks are separate.
+One primary starting configuration reaches an unavailable numerical E query for
+one interval; excluding the same case from all primary methods gives learned
+31/49 versus free-space 38/49, preserving the conclusion. Updated replay labels
+mark unavailable queries rather than silently calling every response optimal.
+
+The next recommended bounded check is to retain every 0.05 s signed field,
+rather than every 0.25 s, on one map and repeat the controls against an unchanged
+E. This tests time interpolation at the actual control interval without changing
+the numerical game. It is proposed, not completed. A numerical local replay
+keeps predicting about one second while P oscillates near zero speed; a small
+countdown-field test did not repair that selected stall. State resolution,
+control extraction and local-exit modelling remain alternative explanations.
+
+Map-aware MCTS, imitation/PPO policies, noisy sensing and onboard validation
+remain unfinished. No toros computation was used. See
 [the contact-game contract](barn-contact-game.md) and
 [the benchmark protocol](barn-benchmark.md).
 
