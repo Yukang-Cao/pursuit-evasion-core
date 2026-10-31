@@ -81,6 +81,8 @@ def solve(
     save_final=True,
 ):
     solve_started = time.perf_counter()
+    if config.capture_rule != "center_distance":
+        raise ValueError("This legacy free-space solver uses circular capture")
     _validate(config, grid, horizon, output_dt, order, cfl, 1)
     if (
         not np.isfinite([max_working_gb, disk_reserve_gb]).all()

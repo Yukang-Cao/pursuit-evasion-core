@@ -79,7 +79,7 @@ def output_times(horizon, output_dt):
 
 def physics_signature(config):
     """Map placement and control cadence are not free-space PDE parameters."""
-    return {
+    result = {
         "capture_radius": float(config.capture_radius),
         "pursuer": {
             k: float(getattr(config.pursuer, k))
@@ -90,6 +90,10 @@ def physics_signature(config):
             for k in ("speed_min", "speed_max", "acceleration", "max_curvature")
         },
     }
+
+    if config.capture_rule != "center_distance":
+        result["capture_rule"] = config.capture_rule
+    return result
 
 
 def _validate(config, grid, horizon, output_dt, order, cfl, threads):
@@ -144,6 +148,8 @@ def solve(
     History is optional for resource probes; online time queries require it.
     """
     solve_started = time.perf_counter()
+    if config.capture_rule != "center_distance":
+        raise ValueError("This legacy free-space solver uses circular capture")
     _validate(config, grid, horizon, output_dt, order, cfl, threads)
     if (
         not np.isfinite([max_working_gb, disk_reserve_gb]).all()

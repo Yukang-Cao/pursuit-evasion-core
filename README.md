@@ -13,16 +13,16 @@ coordinate transforms, and a compact map encoder/value-query network.
 It is a controlled feasibility study; the output is a signed local game value,
 and a reliable control advantage is not yet established.
 
-The Oct 30 free-space experiment uses `configs/reversible_free_a3.json`: both
+The Oct 30 free-space experiment uses `configs/reversible_free_a 3.json`: both
 acceleration limits are 3 m/s². Pass that explicit configuration when recomputing
 tables; the older default model and its records remain available.
 
 The current reversible-car work is in [`reversible/`](src/pursuit_evasion/reversible/).
 Start with [its physical model](docs/reversible-model.md) and
-[the actual B1 switching rule](docs/reversible-b1.md), then the
+[the actual B 1 switching rule](docs/reversible-b 1.md), then the
 [reused MPPI tracker](docs/reversible-mppi.md), [free-space DP](docs/reversible-free-dp.md),
 [fixed-map DP](docs/reversible-world-dp.md), and
-[B2 with B1 rollouts](docs/reversible-b2.md). The earlier
+[B 2 with B 1 rollouts](docs/reversible-b 2.md). The earlier
 [DP-leaf UCT prototype](docs/reversible-uct.md) is retained separately.
 A small [analytic capture check](docs/reversible-analytic-check.md) documents a
 known numerical limitation and its reproducible test.
@@ -40,7 +40,7 @@ from pathlib import Path
 from pursuit_evasion.reversible.model import ReversibleConfig
 from pursuit_evasion.reversible.free_dp import RelativeGrid, solve
 
-config = ReversibleConfig.from_dict(json.loads(Path("configs/reversible_free_a3.json").read_text()))
+config = ReversibleConfig.from_dict(json.loads(Path("configs/reversible_free_a 3.json").read_text()))
 solve(config, RelativeGrid(17, 12, 7, 7, 4.0),
       "/tmp/pe-reversible-smoke", horizon=0.2)
 ```
@@ -65,7 +65,7 @@ python -m pytest
 Run a small native solve (requires `g++` with OpenMP):
 
 ```bash
-python -m pursuit_evasion solve --config configs/square6d.json \
+python -m pursuit_evasion solve --config configs/square 6d.json \
   --backend native --positions 9 --headings 8 --horizon 0.2 \
   --output /tmp/pe-square-smoke
 ```
@@ -77,7 +77,7 @@ See [numerical conventions](docs/numerics.md) before comparing backends.
 Run baseline 1 after computing a sufficiently resolved local table:
 
 ```bash
-python -m pursuit_evasion chase --config configs/square6d.json \
+python -m pursuit_evasion chase --config configs/square 6d.json \
   --cases configs/development_cases.json --case approach \
   --table /path/to/completed/local-table --seed 0 \
   --output /tmp/pe-approach.json
@@ -94,3 +94,7 @@ game. Capture and boundary faults are reported separately.
 
 Offline solvers may use a workstation. The intended online deployment target
 is Jetson Orin; no onboard performance claim is made before profiling there.
+
+## BARN finite-body experiment
+
+The [contact-game guide](docs/barn-contact-game.md) describes the revised rectangle-capture model, compact 8D reference, and refreshed body-frame observations. This branch is under active evaluation; do not mix its rules with the earlier circle-capture results.

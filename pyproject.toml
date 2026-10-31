@@ -11,13 +11,14 @@ dependencies = ["numpy>=1.24"]
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+barn = ["scipy>=1.10"]
 jax = ["hj-reachability>=0.7", "psutil>=5"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-pursuit_evasion = ["dp/*.cpp", "reversible/*.cpp", "reversible/*.txt", "reversible/*.html"]
+pursuit_evasion = ["dp/*.cpp", "reversible/*.cpp", "reversible/*.txt", "reversible/*.html", "local_game/*.cpp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

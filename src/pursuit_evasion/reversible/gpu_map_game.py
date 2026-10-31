@@ -107,6 +107,8 @@ def solve(
     save_history=False,
     max_working_gb=7.6,
 ):
+    if config.capture_rule != "center_distance" or config.boundary_rule != "first_fault_loses":
+        raise ValueError("Legacy map HJI uses center-distance capture and first-fault-loses")
     if config.point_vehicles:
         raise ValueError("Footprint HJI requires point_vehicles=False.")
     if not isinstance(geometry, FootprintMap) or not isinstance(grid, WorldGrid):

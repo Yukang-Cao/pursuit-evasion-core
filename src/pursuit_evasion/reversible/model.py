@@ -43,6 +43,7 @@ class ReversibleConfig:
     arena_half_width: float = 3.0
     boundary_rule: str = "first_fault_loses"
     point_vehicles: bool = True
+    capture_rule: str = "center_distance"
 
     def __post_init__(self):
         values = (self.capture_radius, self.control_dt, self.arena_half_width)
@@ -50,12 +51,21 @@ class ReversibleConfig:
             raise ValueError(
                 "Radius, control interval and square extent must be positive."
             )
-        if self.boundary_rule != "first_fault_loses" or not isinstance(
-            self.point_vehicles, bool
-        ):
+        if self.boundary_rule not in (
+            "first_fault_loses",
+            "collision_constrained",
+        ) or not isinstance(self.point_vehicles, bool):
             raise ValueError(
-                "Use first_fault_loses and an explicit point/footprint flag."
+                "Use a declared boundary rule and an explicit point/footprint flag."
             )
+
+        if self.capture_rule not in ("center_distance", "rectangle_contact"):
+            raise ValueError("Unknown capture rule")
+        if self.point_vehicles and (
+            self.capture_rule != "center_distance"
+            or self.boundary_rule != "first_fault_loses"
+        ):
+            raise ValueError("Finite-body game rules require point_vehicles=False")
 
     def to_dict(self):
         return asdict(self)

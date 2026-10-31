@@ -147,6 +147,8 @@ def advance(state, p_control, e_control, config, geometry, duration=None):
     from ..game import _first_zero
     from .model import joint_step, vehicle_step
 
+    if config.capture_rule != "center_distance" or config.boundary_rule != "first_fault_loses":
+        raise ValueError("Use the local-game simulator for the revised contact game")
     if config.point_vehicles:
         raise ValueError("Footprint events require point_vehicles=False.")
     duration = config.control_dt if duration is None else float(duration)
