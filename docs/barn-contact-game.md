@@ -179,3 +179,10 @@ Executed-controller memory instead accumulates its actual past scans. The ideal 
 supplied at deployment. Both models receive current contact geometry and
 clearance features computed from the observed image. Thus the no-image model
 is a state-and-clearance baseline, not a fully map-blind predictor.
+
+The chase example also supports `--learned-only --checkpoint MODEL.pt`. In that
+mode both players use the network, and the supplied reference directory needs
+only `meta.json` describing the physical game. No numerical value arrays or grid
+files are loaded. This path exactly reproduced a two-second learned-pair replay
+when tested with a metadata-only directory. The common full-map physical action
+check remains; this is table-free value inference, not a sensor-only safety claim.
