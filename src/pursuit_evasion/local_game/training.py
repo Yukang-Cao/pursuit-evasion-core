@@ -113,7 +113,9 @@ def fit_contact_values(
                 pool.append(ids if len(ids) else np.arange(per))
             cache[mid] = dict(
                 s=torch.tensor(
-                    o["local_states"].reshape(nframes, per, 8), device=device
+                    o["local_states"].reshape(nframes, per, 8),
+                    dtype=torch.float32,
+                    device=device,
                 ),
                 gp=torch.tensor(
                     o["geometry_partial"].reshape(nframes, per, 3), device=device

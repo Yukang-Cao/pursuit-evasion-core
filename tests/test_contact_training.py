@@ -37,7 +37,7 @@ def fixture(folder, identity):
     (folder / "observations_meta.json").write_text(
         json.dumps({"version": 2, "sensor": {"extent": 6}})
     )
-    s = np.tile([0, 0, 0, 0, 1, 0, 0, 0], (64, 1)).astype(np.float32)
+    s = np.tile([0, 0, 0, 0, 1, 0, 0, 0], (64, 1)).astype(np.float64)
     g = np.tile([0.4, 2, 2], (64, 1)).astype(np.float32)
     image = np.ones((4, 2, 32, 32), np.float16)
     image[:, 0] = 2
