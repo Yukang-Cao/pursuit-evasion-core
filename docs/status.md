@@ -12,10 +12,11 @@ obstacle contacts are never credited as captures.
 
 Implemented and checked: finite-body geometry, continuous contact events,
 LiDAR memory and body-frame views, compact 8D Bellman updates, streamed history
-queries, and matched P/E capture-time extraction. Reference generation has completed most training maps. Five whole-chase
+queries, and matched P/E capture-time extraction. All twenty training and five validation numerical references are complete. Five whole-chase
 validation starts captured without obstacle contact using the common route
 approach and numerical finish. These are development checks, not held-out
-performance. Neural training and final cross-play remain pending.
+performance. The first supervised value fit completed; the second training seed and final
+held-out cross-play are ongoing. No final test-performance claim is made yet.
 
 The reference retains all eight dynamic variables and omits illegal states
 or states outside the local separation domain. Tiling the output through RAM

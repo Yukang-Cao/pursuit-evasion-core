@@ -1,9 +1,9 @@
 # The first physical game
 
-> This page documents the earlier fixed-speed square game. Current experiments
-> use the [acceleration-limited reversible model](reversible-model.md) in free
-> space with `configs/reversible_free_a3.json` (3 m/s² for both players).
-> Use that explicit configuration; bare legacy defaults remain for reproduction.
+> This page documents the earlier fixed-speed point-car square game. The current
+> finite-body BARN experiment is defined in [the contact-game contract](barn-contact-game.md).
+> The [reversible model](reversible-model.md) describes the shared acceleration
+> and signed-speed dynamics used by the newer experiments.
 
 Two point cars move in a fixed square. Both speeds are positive and constant.
 The state is `[xP, yP, thetaP, xE, yE, thetaE]`, in metres and radians.

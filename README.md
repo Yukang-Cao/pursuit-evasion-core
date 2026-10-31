@@ -7,17 +7,36 @@ outside the repository.
 
 ## Start here
 
-The current [map-conditioned value pilot](docs/map-conditioned-value.md) adds
-oriented footprints, an eight-dimensional GPU HJI reference, fixed-frame
-coordinate transforms, and a compact map encoder/value-query network.
-It is a controlled feasibility study; the output is a signed local game value,
-and a reliable control advantage is not yet established.
+The current [BARN contact-game experiment](docs/barn-contact-game.md) uses two
+acceleration-limited reversible cars, explicit rectangular footprints, and
+rectangular-contact capture. Its local game retains all eight dynamic states.
+A compact numerical reference supplies supervised labels for a value network
+queried from refreshed P-centered observations.
+
+The runnable path is:
+
+1. [Generate a numerical reference](examples/solve_barn_contact.py).
+2. [Build local observations](examples/build_contact_observations.py).
+3. [Fit value models](examples/fit_contact_values.py).
+4. [Replay the hierarchy](examples/chase_barn_contact.py), optionally with
+   `--learned-only` so no numerical arrays are loaded.
+
+Read the [game contract](docs/barn-contact-game.md), [code map](docs/architecture.md),
+and [implementation status](docs/status.md) before comparing results. The current
+benchmark shares exact physical action-feasibility checks across controllers;
+it is not yet a sensor-only onboard system or an exact optimal-game solver.
+
+## Earlier experiments retained for reproduction
+
+The earlier [map-conditioned room pilot](docs/map-conditioned-value.md) used an
+8D GPU HJI reference and circular capture with rectangular obstacle footprints.
+Its game rules and results are separate from the new BARN contact game.
 
 The Oct 30 free-space experiment uses `configs/reversible_free_a3.json`: both
 acceleration limits are 3 m/s². Pass that explicit configuration when recomputing
 tables; the older default model and its records remain available.
 
-The current reversible-car work is in [`reversible/`](src/pursuit_evasion/reversible/).
+The earlier reversible-car work is in [`reversible/`](src/pursuit_evasion/reversible/).
 Start with [its physical model](docs/reversible-model.md) and
 [the actual B1 switching rule](docs/reversible-b1.md), then the
 [reused MPPI tracker](docs/reversible-mppi.md), [free-space DP](docs/reversible-free-dp.md),
@@ -28,7 +47,7 @@ A small [analytic capture check](docs/reversible-analytic-check.md) documents a
 known numerical limitation and its reproducible test.
 The [interactive value viewer](docs/value-viewer.md) links world configurations,
 relative table slices, and recorded controller/waypoint transitions.
-Run the current model through [the free-space benchmark guide](docs/free-space-benchmark.md)
+Run that free-space model through [the free-space benchmark guide](docs/free-space-benchmark.md)
 and [`examples/chase_free.py`](examples/chase_free.py). The fixed-speed model below
 is retained for earlier reproducible experiments.
 
@@ -94,7 +113,3 @@ game. Capture and boundary faults are reported separately.
 
 Offline solvers may use a workstation. The intended online deployment target
 is Jetson Orin; no onboard performance claim is made before profiling there.
-
-## BARN finite-body experiment
-
-The [contact-game guide](docs/barn-contact-game.md) describes rectangular capture, the compact 8D reference, and refreshed body-frame observations. This branch is under active evaluation; its rules differ from the earlier circle-capture results.
