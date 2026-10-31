@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated 2026-10-30. This is a runnable research baseline, not a certified
+Updated 2026-10-31. This is a runnable research baseline, not a certified
 continuous-game solution or an onboard release.
 
 ## BARN contact-game run in progress, Oct 31
@@ -12,9 +12,10 @@ obstacle contacts are never credited as captures.
 
 Implemented and checked: finite-body geometry, continuous contact events,
 LiDAR memory and body-frame views, compact 8D Bellman updates, streamed history
-queries, and matched P/E capture-time extraction. The first references and
-validation replays completed. Neural training and final cross-play results are
-still pending; do not present them as finished.
+queries, and matched P/E capture-time extraction. Reference generation has completed most training maps. Five whole-chase
+validation starts captured without obstacle contact using the common route
+approach and numerical finish. These are development checks, not held-out
+performance. Neural training and final cross-play remain pending.
 
 The reference retains all eight dynamic variables and omits illegal states
 or states outside the local separation domain. Tiling the output through RAM

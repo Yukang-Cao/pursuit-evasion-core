@@ -1,6 +1,14 @@
 # Code map
 
-## Current reversible free-space experiment
+## Current BARN contact-game experiment
+
+Read [the contact-game contract](barn-contact-game.md) first. `local_game/` keeps
+geometry, compact eight-state Bellman references, LiDAR observations, learned
+value queries, and the approach/finish hierarchy separate. The entrypoints are
+`examples/solve_barn_contact.py` and `examples/chase_barn_contact.py`. The older
+free-space and wall-fault games below are retained for reproduction.
+
+## Earlier reversible free-space experiment
 
 Start with [the reversible model](reversible-model.md), then
 [the reproducible benchmark](free-space-benchmark.md). The current entrypoint is

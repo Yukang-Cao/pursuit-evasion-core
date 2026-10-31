@@ -114,6 +114,20 @@ def library():
         "lidar_ranges",
     ]:
         getattr(lib, name).restype = None
+    lib.matched_steps.argtypes = [
+        D,
+        D,
+        ctypes.c_long,
+        ctypes.c_double,
+        D,
+        ctypes.c_int,
+        ctypes.c_double,
+        D,
+        U,
+        D,
+        ctypes.c_int,
+    ]
+    lib.matched_steps.restype = None
     _LIB = lib
     return lib
 
@@ -194,6 +208,28 @@ class GeometryEngine:
             self.threads,
         )
         return out.astype(bool)
+
+    def matched_steps(self, states, controls, dt):
+        s = self._states(states)
+        u = np.ascontiguousarray(controls, float).reshape(-1, 2)
+        if len(s) != len(u):
+            raise ValueError("One control per state required")
+        good = np.empty(len(s), np.uint8)
+        nxt = np.empty_like(s)
+        self.lib.matched_steps(
+            s,
+            u,
+            len(s),
+            dt,
+            self.obstacles,
+            len(self.obstacles),
+            self.arena.half_width,
+            self.params,
+            good,
+            nxt,
+            self.threads,
+        )
+        return nxt, good.astype(bool)
 
     def actions(self, s, controls, dt):
         x = self._states(s)

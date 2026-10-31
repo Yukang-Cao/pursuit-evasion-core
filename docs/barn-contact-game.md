@@ -107,8 +107,51 @@ observations is not an exact partially observed game solution.
 - control.py: matching P-min/E-max time objectives and deterministic ties.
 - simulate.py: local feedback diagnostic replays with separate outcomes.
 - learning.py: optional map encoder and monotone remaining-budget value curves.
+- navigation.py: shared observed-map route targets and reversible footprint MPPI.
+- hierarchy.py: full chases, successor-based handoffs, cross-play and timings.
+- free_value.py: obstacle-blind body-contact value comparison with the same physics.
 
 Dependencies remain optional. The base package is NumPy-only; this experiment
 also uses SciPy, a C++/OpenMP compiler, optional CuPy for reference computation,
 and optional PyTorch for learning. Reference tables, models, images and replays
 belong outside the code repository.
+
+## Whole chase and comparison contract
+
+`examples/chase_barn_contact.py` replays one initial joint state. The numerical
+reference supplies physical geometry and local signed histories. A learned
+source needs only its checkpoint, a fresh local image, and the joint state for
+value queries; the benchmark still shares exact physical action feasibility.
+
+At every 0.05 s update, P tests its admissible commands against the admissible
+E replies. P enters the local finish if at least one command has a finite
+remaining-time estimate against every tested E reply. The current state need
+not already have a finite estimate. Otherwise P uses the common approach.
+E responds to the selected P command by maximizing the same time estimate.
+When all local times are unresolved, the signed contact field breaks ties;
+outside the local domain E uses the common escape-navigation heuristic. This
+is a P-then-E sampled game, not an independently simultaneous-action solver.
+
+The approach uses a route through currently observed obstacle surfaces. Unknown
+space is optimistic for this navigation heuristic, while the value network
+receives an explicit known-space mask. P follows the route toward E; E's far
+heuristic seeks greater route distance. A 2 m lookahead sets the waypoint.
+The existing log-MPPI update tracks a position and forward-heading target with
+512 samples over 2 s. Reverse maneuvers remain available. Navigation costs end
+at waypoint arrival; arrival does not end the pursuit game. Swept footprints
+and a braking continuation filter the samples. Exact-map feasibility projects
+an unsafe proposed first command onto the shared safe command set.
+
+This is a route-guided BARN adaptation of the earlier hierarchy, not an unchanged
+lion strategy. Its purpose is to keep the approach identical across local-value
+comparisons. No new optimality claim is made for the route or tracker.
+
+The free-space control comparison uses a separate rectangular-contact table
+with the same acceleration, footprint, local radius and time budget. It does
+not reuse earlier circular-capture histories. Its immediate physical action
+filter still knows the obstacles, but its future value does not.
+
+Primary comparisons are numerical P/numerical E, learned P/numerical E, and
+learned P/learned E. A rise in capture rate in the last pairing can mean E became
+weaker; it is not by itself evidence that learned P improved. Cross-play and
+shared-state action checks are needed to interpret the result.

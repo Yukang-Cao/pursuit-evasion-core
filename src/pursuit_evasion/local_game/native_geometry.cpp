@@ -136,3 +136,11 @@ extern "C" void configuration_connections(const double*from,const double*to,long
   out[i]=config_interval(a,b,0,1,clearance(a,obs,nc,half,m),clearance(b,obs,nc,half,m),angle,lip,obs,nc,half,m,0);
  }
 }
+extern "C" void matched_steps(const double*states,const double*controls,long n,double dt,const double*obs,int nc,double half,const double*param,uint8_t*safe,double*next,int threads){
+ Model m=read_model(param);
+ #pragma omp parallel for num_threads(threads) schedule(static)
+ for(long i=0;i<n;i++){
+  const double*s=states+4*i,*u=controls+2*i;double*out=next+4*i;step(s,u[0],u[1],dt,m,out);
+  safe[i]=motion_safe(s,u[0],u[1],dt,obs,nc,half,m);
+ }
+}

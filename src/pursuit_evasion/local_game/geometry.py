@@ -73,8 +73,28 @@ class CircleArena:
         )
 
     @classmethod
-    def from_barn(cls, grid_file, *, base_resolution=0.15, scale=2):
+    def from_barn(cls, grid_file, *, base_resolution=None, scale=2):
         grid_file = Path(grid_file)
+        if base_resolution is None:
+            import re
+
+            identifier = grid_file.stem.removeprefix("grid_")
+            metadata = grid_file.parent.parent / "map_files" / f"yaml_{identifier}.yaml"
+            if not metadata.exists():
+                raise ValueError(
+                    "BARN YAML resolution is required; supply base_resolution for converted maps"
+                )
+            match = re.search(
+                r"^resolution:\s*([0-9.eE+-]+)", metadata.read_text(), re.MULTILINE
+            )
+            if match is None:
+                raise ValueError("Missing BARN map resolution")
+            base_resolution = float(match.group(1))
+        if (
+            not np.isfinite([base_resolution, scale]).all()
+            or min(base_resolution, scale) <= 0
+        ):
+            raise ValueError("Positive physical resolution and scale required")
         grid = np.load(grid_file, allow_pickle=False)
         if (
             grid.ndim != 2

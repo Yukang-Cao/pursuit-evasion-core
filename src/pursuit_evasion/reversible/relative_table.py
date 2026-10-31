@@ -118,6 +118,8 @@ class RelativeTable:
 
     def value(self, states):
         """First crossing of interpolated signed fields, never interpolated arrivals."""
+        if self.meta.get("capture_rule") == "rectangle_contact":
+            raise ValueError("Use local_game.free_value.ContactFreeValue for rectangular time queries")
         ii, weights, valid, shape = self.stencil(states)
 
         if not valid.any():

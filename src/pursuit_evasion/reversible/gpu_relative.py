@@ -28,6 +28,7 @@ extern "C" __global__ void advance(const float*src,float*dst,float*arrival,const
  int ix=j%nx,iy=j/nx%nx,ip=j/((long long)nx*nx)%np,ie=j/((long long)nx*nx*np)%ne,iv=j/((long long)nx*nx*np*ne);
  long long sy=nx,sp=(long long)nx*nx,se=sp*np,sv=se*ne;
  double dx=2*W/(nx-1),dp=6.2831853071795864769/np,dvp=(vhi-vlo)/(nv-1),dve=(ehi-elo)/(ne-1),x=-W+ix*dx,y=-W+iy*dx,vp=vlo+iv*dvp,ve=elo+ie*dve;
+ /*LOCAL_EXIT*/
  double wp=fabs(vp)*kp,we=fabs(ve)*ke,bx=ve*cs[ip]-vp,by=ve*sn[ip];
  double xm,xp,ym,yp,pm,pp,vm,vplus,em,ep;
  slopes(src,j,1,ix,nx,dx,0,order,xm,xp);slopes(src,j,sy,iy,nx,dx,0,order,ym,yp);slopes(src,j,sp,ip,np,dp,1,order,pm,pp);slopes(src,j,sv,iv,nv,dvp,0,order,vm,vplus);slopes(src,j,se,ie,ne,dve,0,order,em,ep);
@@ -79,10 +80,16 @@ def solve(
     device=0,
     probes=None,
     save_final=True,
+    capture_footprints=None,
+    exit_radius=None,
 ):
     solve_started = time.perf_counter()
-    if config.capture_rule != "center_distance":
-        raise ValueError("This legacy free-space solver uses circular capture")
+    if config.capture_rule == "rectangle_contact" and capture_footprints is None:
+        raise ValueError("Rectangle capture requires explicit P/E footprints")
+    if config.capture_rule == "center_distance" and capture_footprints is not None:
+        raise ValueError("Declare rectangle_contact in the configuration")
+    if exit_radius is not None and not 0 < exit_radius < grid.extent:
+        raise ValueError("Local exit radius must lie inside the numerical grid")
     _validate(config, grid, horizon, output_dt, order, cfl, 1)
     if (
         not np.isfinite([max_working_gb, disk_reserve_gb]).all()
@@ -116,6 +123,12 @@ def solve(
         raise OSError("Insufficient disk space after reserve")
     output.mkdir(exist_ok=True)
     code = source_code(local_precision)
+    if exit_radius is None:
+        code=code.replace("/*LOCAL_EXIT*/", "")
+    else:
+        suffix="f" if local_precision=="float32" else ""
+        condition=f"if(x*x+y*y>{exit_radius**2:.9e}{suffix}){{dst[j]={exit_radius:.9e}{suffix};return;}}"
+        code=code.replace("/*LOCAL_EXIT*/",condition)
     digest = hashlib.sha256(code.encode()).hexdigest()
     (output / "kernel.cu").write_text(code)
     kernel = cp.RawKernel(code, "advance", options=("--std=c++17", "--fmad=false"))
@@ -145,6 +158,15 @@ def solve(
     initial2 = (
         np.hypot(coord[:, None], coord[None, :]) - config.capture_radius
     ).astype(np.float32)
+    if capture_footprints is not None:
+        from ..local_game.geometry import rectangle_separation
+        xx,yy=np.meshgrid(coord,coord)
+        other=np.zeros((grid.headings,grid.positions,grid.positions,4))
+        other[...,0]=xx;other[...,1]=yy;other[...,2]=axes[2][:,None,None]
+        initial2=rectangle_separation(np.zeros(4),other,*capture_footprints).astype(np.float32)
+    if exit_radius is not None:
+        xx,yy=np.meshgrid(coord,coord)
+        initial2=np.where(xx*xx+yy*yy>exit_radius**2,exit_radius,initial2).astype(np.float32)
     start = time.perf_counter()
     plane = cp.asarray(initial2.ravel())
     a = cp.empty(N, dtype=cp.float32)
@@ -221,6 +243,9 @@ def solve(
         "history_saved": bool(history),
         "dtype": "float32",
         "target": "physical_capture_only",
+        "capture_rule": config.capture_rule,
+        "capture_footprints": None if capture_footprints is None else {"pursuer":capture_footprints[0].to_dict(),"evader":capture_footprints[1].to_dict()},
+        "local_exit_radius": exit_radius,
         "avoid": None,
         "tube_projection": "min over every internal update",
         "position_boundary": "one-sided linear extrapolation; outside queries unresolved",

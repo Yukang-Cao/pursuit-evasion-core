@@ -26,6 +26,7 @@ class LidarMemory:
         self.origin = np.array([-arena.half_width - 0.5, -arena.half_width - 0.5])
         n = int(np.ceil((2 * arena.half_width + 1) / settings.memory_resolution))
         self.cells = np.zeros((n, n), np.uint8)  # 0unknown,1observedfree,2hit
+        self.points = np.full((n, n, 2), np.nan)
         self.last_ranges = None
         self.scans = 0
 
@@ -63,8 +64,26 @@ class LidarMemory:
             & (iy < self.cells.shape[0])
         )
         self.cells[iy[valid], ix[valid]] = 2
+        keys = iy[valid] * self.cells.shape[1] + ix[valid]
+        _, first = np.unique(keys, return_index=True)
+        self.points.reshape(-1, 2)[keys[first]] = np.stack(
+            [x[valid][first], y[valid][first]], -1
+        )
         self.last_ranges = ranges
         self.scans += 1
+
+    def observed_arena(self):
+        from .geometry import CircleArena
+
+        points = self.points[self.cells == 2]
+        circles = np.c_[points, np.full(len(points), 1e-9)]
+        return CircleArena(
+            circles,
+            self.arena.half_width,
+            self.arena.pursuer,
+            self.arena.evader,
+            source={"kind": "observed static surface points plus known arena boundary"},
+        )
 
     def image(self, pose, *, ideal=False):
         from scipy.ndimage import distance_transform_edt
