@@ -22,7 +22,7 @@ The runnable path is:
    `--learned-only` so no numerical arrays are loaded.
 
 Read the [game contract](docs/barn-contact-game.md), [code map](docs/architecture.md),
-and [implementation status](docs/status.md) before comparing results. The current
+[implementation status](docs/status.md), and the [fixed BARN benchmark](docs/barn-benchmark.md) before comparing results. The current
 benchmark shares exact physical action-feasibility checks across controllers;
 it is not yet a sensor-only onboard system or an exact optimal-game solver.
 

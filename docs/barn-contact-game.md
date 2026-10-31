@@ -212,3 +212,23 @@ free-space values. See [the benchmark](barn-benchmark.md).
 `--observation memory` is the standard scan-memory input. `single` uses only the
 current scan; `ideal` supplies complete local geometry as an information
 ablation. An ideal input is not a sensor-only deployment result.
+
+## Sampling the states used by the controller
+
+`examples/sample_contact_successors.py ORIGINAL REFERENCE OUTPUT --seed SEED`
+provides a second supervised-query sampler. ORIGINAL contains the existing
+observation frames and candidate E poses; REFERENCE contains the matching
+retained numerical history. OUTPUT must be a separate empty directory.
+
+The sampler draws continuous root speeds, rejects physically inadmissible roots,
+and executes admissible held P/E command pairs for one control interval. It
+labels the resulting joint configurations with the same continuous numerical
+query interface. It preserves observation poses, images, queries per frame,
+physics, grids and time budgets. Root states and generating commands are stored
+for propagation checks. Unknown/unsupported labels are excluded rather than
+invented. This changes the training query distribution, not the controller or
+loss function. It does not by itself establish a performance improvement.
+
+The public sampler exactly matched all query, label, command and observation
+arrays from the checked experiment implementation on 49,152 queries. Those
+code-extraction check data were not used for training.
