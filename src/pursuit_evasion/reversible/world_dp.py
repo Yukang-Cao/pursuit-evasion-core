@@ -200,6 +200,10 @@ def solve(
     """
     if not isinstance(config, ReversibleConfig):
         raise TypeError("Use the reversible physical model.")
+    if not config.point_vehicles:
+        raise ValueError(
+            "This square backend uses points; use the footprint-map backend."
+        )
     if getattr(config, "obstacles", ()):
         raise ValueError(
             "This native 8D backend currently supports the square boundary only."

@@ -159,6 +159,10 @@ class ReactiveEvader:
         return int(np.argmax(np.where(pool, elapsed, -np.inf))), "latest_predicted_loss"
 
     def command(self, state, p_control):
+        if not self.config.point_vehicles:
+            raise ValueError(
+                "This opponent uses point-map checks; use a footprint-aware response."
+            )
         begin = time.perf_counter()
         state, p_control = np.asarray(state, float), np.asarray(p_control, float)
         if state.shape != (8,) or p_control.shape != (2,):

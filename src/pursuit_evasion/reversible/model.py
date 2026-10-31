@@ -50,8 +50,12 @@ class ReversibleConfig:
             raise ValueError(
                 "Radius, control interval and square extent must be positive."
             )
-        if self.boundary_rule != "first_fault_loses" or not self.point_vehicles:
-            raise ValueError("Current model uses point vehicles and first_fault_loses.")
+        if self.boundary_rule != "first_fault_loses" or not isinstance(
+            self.point_vehicles, bool
+        ):
+            raise ValueError(
+                "Use first_fault_loses and an explicit point/footprint flag."
+            )
 
     def to_dict(self):
         return asdict(self)

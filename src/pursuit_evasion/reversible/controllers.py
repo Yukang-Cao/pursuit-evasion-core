@@ -162,6 +162,10 @@ class Baseline1:
         lookahead=1.0,
         takeover="successor",
     ):
+        if not config.point_vehicles:
+            raise ValueError(
+                "This B1 uses point-map checks; footprint integration is separate."
+            )
         if mode not in ("hybrid", "approach", "dp"):
             raise ValueError("Unknown controller mode.")
         self.config = config

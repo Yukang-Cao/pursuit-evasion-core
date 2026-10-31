@@ -89,6 +89,10 @@ def _measures(config, world):
 
 
 def advance(state, p_control, e_control, config, duration=None, world=None):
+    if not config.point_vehicles:
+        raise ValueError(
+            "Point-game events cannot handle footprints; use footprint_map.advance."
+        )
     s = np.asarray(state, float)
     if s.shape != (8,):
         raise ValueError("Expected one eight-dimensional state.")
@@ -129,6 +133,8 @@ def predict_pairs(state, p_controls, e_controls, config, duration=None, world=No
     crossings; adaptive scalar search covers possible enter-and-exit intervals.
     Returned states are at the first event (or the full duration when continuing).
     """
+    if not config.point_vehicles:
+        raise ValueError("Point-game predictions cannot handle footprints.")
     s = np.asarray(state, float)
     P = np.asarray(p_controls, float)
     E = np.asarray(e_controls, float)
