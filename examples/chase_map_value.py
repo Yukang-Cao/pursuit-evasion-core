@@ -18,7 +18,9 @@ from pursuit_evasion.reversible.evaluation import json_safe
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument("--reference", type=Path, required=True)
-p.add_argument("--checkpoint", type=Path)
+choice = p.add_mutually_exclusive_group()
+choice.add_argument("--checkpoint", type=Path)
+choice.add_argument("--free-reference", type=Path)
 p.add_argument("--device", default="cpu")
 p.add_argument("--state", nargs=8, type=float, required=True)
 p.add_argument("--max-time", type=float, default=6)
@@ -38,6 +40,10 @@ if a.checkpoint:
         import torch
 
         torch.set_float32_matmul_precision("high")
+if a.free_reference:
+    from pursuit_evasion.reversible.map_game_policy import FreeSpaceMapValue
+
+    source = FreeSpaceMapValue(a.free_reference, ref.config)
 s = np.asarray(a.state)
 t = 0.0
 trace = []
@@ -67,7 +73,11 @@ result = dict(
     initial=a.state,
     config=ref.config.to_dict(),
     geometry=ref.geometry.to_dict(),
-    pursuer="learned value" if a.checkpoint else "numerical reference",
+    pursuer=(
+        "learned value"
+        if a.checkpoint
+        else ("free-space value" if a.free_reference else "numerical reference")
+    ),
     evader="one-step numerical-reference signed-margin response after observing P command",
 )
 a.output.parent.mkdir(parents=True, exist_ok=True)

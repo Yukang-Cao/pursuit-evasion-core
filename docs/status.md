@@ -20,20 +20,21 @@ separate translated/rotated-frame augmentation check reused physical labels.
 Map features improved held-out value fitting in two seeds. The final 28-start
 local controller tests did not establish a capture benefit: reference and map
 network each captured 27/28 with one E collision, while the no-image MLP captured
-27/28 and 28/28 across seeds. Earlier fixed-budget signed-margin selection
+27/28 and 28/28 across seeds. A finer free-space-value baseline with the same
+immediate collision checks captured all 28 starts. Earlier fixed-budget signed-margin selection
 results are preserved but are not used as a superior-control claim.
 
 The public label, training, table-free query and local-chase examples ran.
 The public chase reproduced its recorded trajectory exactly. Reintegrating all
-264 development/final episodes matched all 4,865 recorded transitions and events.
+292 development/final episodes matched all 5,240 recorded transitions and events.
 The full installed-package suite passed 180 tests with three CUDA tests skipped;
 the CUDA footprint/history group separately passed nine tests. These are consistency
 checks, not independent physical or optimality proofs.
 
 Still unimplemented: a partial-observation/crop-exit game definition, global
-hierarchy integration of the new local network, sensor-noise tests, a systematic
-free-space-value-plus-collision baseline, and Jetson deployment. No toros job
-was run. B3 imitation/PPO and B4 remain separate unfinished deliverables; this
+hierarchy integration of the new local network, sensor-noise tests, a broad
+obstacle-game benchmark, and Jetson deployment. No toros job
+was run. B3 imitation and B4 PPO remain separate unfinished deliverables; this
 supervised value pilot is not completion of those policy-learning baselines.
 See [map-conditioned-value.md](map-conditioned-value.md).
 

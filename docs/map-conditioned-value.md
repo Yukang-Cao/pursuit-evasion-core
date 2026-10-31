@@ -120,6 +120,9 @@ The final 28-start diagnostic on two held-out layouts produced 27 captures and
 one E collision for the reference and map network in each seed. The no-image
 MLP produced 27 captures in seed 0 and 28 in seed 1. All methods captured all
 12 starts in the separately selected cross-door subset in both seeds.
+A later practical comparison used a finer 5D free-space value under the same
+immediate footprint collision checks, states, selector and actual E policy. It
+captured all 28 starts, all within 1.19 s. No new starts were selected for it.
 There is therefore no demonstrated capture-count benefit from map context yet.
 These results establish an inspectable pipeline; they do not establish a
 robustly superior controller, sensor-noise robustness, or onboard performance.
@@ -184,3 +187,19 @@ five-budget time extraction took about 30 ms. Complete recorded diagnostic
 steps had a roughly 231 ms 95th percentile, including the reference-based E.
 These measurements have different scopes and are not interchangeable. No Jetson
 or complete real-time deployment result is claimed.
+
+## Free-space continuation baseline
+
+The local replay also accepts --free-reference /path/to/free-table instead of
+--checkpoint. This keeps successor_matrix and all physical event checks intact;
+only the future value ignores map obstacles. FreeSpaceMapValue checks matching
+vehicle dynamics and capture radius against table metadata.
+
+The comparison used RelativeGrid(65, 32, 13, 13, 6), a two-second history with
+0.5 s outputs from gpu_relative.solve, order=2, cfl=0.7, local_precision="float32".
+Use ReversibleConfig.from_dict(suite["config"]) from map_value_pilot_suite.json,
+so the capture radius is 0.5 m. The retained history is about 457 MB; measured
+GPU updates took 8.43 s. The 5D and 8D grids are not matched cell counts: this
+baseline intentionally uses a finer free-space discretization, not a weakened
+reference. Its value predicts physical capture in free space; immediate wall
+outcomes are still handled by the common footprint simulator and selector.

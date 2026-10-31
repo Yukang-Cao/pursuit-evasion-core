@@ -69,3 +69,37 @@ def select_time_or_margin(controls, records, states, codes, value_source):
         select_margin(margin_costs(value_source.field(states), codes), controls),
         "margin_fallback",
     )
+
+
+class FreeSpaceMapValue:
+    """Free-space continuation under the same map-aware successor collision checks.
+
+    This source ignores obstacles beyond the next tested control interval.
+    Keep physical event handling in successor_matrix unchanged when comparing it.
+    """
+
+    def __init__(self, folder, config):
+        from .relative_table import RelativeTable
+
+        self.table = RelativeTable(folder, config)
+        self.horizon = self.table.horizon
+        self.times = self.table.times
+        self.radius = config.capture_radius
+
+    def field(self, states, budget=None):
+        from .model import relative_state
+
+        return self.table.field(
+            relative_state(states), self.horizon if budget is None else budget
+        )
+
+    def time_value(self, states):
+        from .model import relative_state
+        from .map_game_field import first_crossing
+
+        relative = relative_state(states)
+        fields = np.stack(
+            [self.table.field(relative, t).reshape(-1) for t in self.times]
+        )
+        fields[0] = np.linalg.norm(relative[..., :2], axis=-1).reshape(-1) - self.radius
+        return first_crossing(self.times, fields).reshape(relative.shape[:-1])
